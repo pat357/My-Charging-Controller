@@ -1,10 +1,8 @@
 ###### MC's Charging Controller
-###### mcc README ( 201802094 )
+###### mcc README ( 201802101 )
 ###### MCMotherEffin' @ XDA Developers
 
-
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar
-
 
 ### Links
 
@@ -13,26 +11,17 @@
 * [Donate](https://paypal.me/JayminSuthar)
 * [Battery University](http://batteryuniversity.com/learn/article/how_to_prolong_lithium_based_batteries)
 
-
-### Intro
+### Description
 
 * ##### It is meant to prolong Lithium batteries' life by controlling charging
-
 * ##### It allows you to turn charging ON / OFF by rules you define or manually
-
 * ##### In daemon mode, charging is controlled automatically by these twos: up_ / down_threshold
-
 * ##### Also you can manually set specific ON / OFF time period or desired percent
-
 * ##### Talking more there are battery stats reset and some other useful info
-
 * ##### Everything has error handling, so don't worry while configuring
-
 * ##### Initially inspired by @VR25's 'Magic Charging Switch'
 
-
 ### Usage
-
 
 ##### mcc [ ARG_1 ] [ ARG_2 ].....
 
@@ -89,19 +78,20 @@
     [ --help ]
         :- Show this help message
 
-
 ### Notes
 
 * Device must be charging while installing / [ --reconf ]
-* You should press enter after forking service
 * 85 70 for daemon and 20 for shut is optimal balance between battery lifespan and available capacity
 * [ --statreset ] might not work on some ROMs
 * It re-installs busybox to /cache/mcc_busybox ( about 1MB )
 * Every task is executed once per 10 seconds
 * If you like my work, please consider making a donation
 
-
 ### Changelog
+
+##### Jalebis MR
+
+* Some minor, but important changes
 
 ##### Jalebis
 
@@ -110,7 +100,6 @@
 ##### Imerty MR
 
 * Fixed mcc-check running exec instead of fork
-
 * Fixed service logging with mcc-check
 
 ##### Imerty
@@ -130,11 +119,7 @@
 *  --------    thanks to [0xCA](https://t.me/Hi10pH264) for his extensive testing, reporting and reasoning
 
 * Fixed rebooting while checking compatibility
-
 * Added /sys/module into references lookup path
-
 * Improved charging control
-
 * Better environment setup
-
 * Other code improvements
