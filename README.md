@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201802101 )
+###### mcc README ( 201802102 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar
@@ -19,7 +19,6 @@
 * ##### Also you can manually set specific ON / OFF time period or desired percent
 * ##### Talking more there are battery stats reset and some other useful info
 * ##### Everything has error handling, so don't worry while configuring
-* ##### Initially inspired by @VR25's 'Magic Charging Switch'
 
 ### Usage
 
@@ -29,9 +28,9 @@
 
     [ --set ] [ DISABLE % ] [ ENABLE % ]
         :- Set thresholds ( % ) used by daemon mode for turning charging ON / OFF
-        :- This will keep battery level within set boundaries while your phone is plugged
+        :- This will keep battery level within set boundaries while the device is plugged
         :---  [ ENABLE % ] is optional
-        :---  Defaults :- 70 60
+        :---  Defaults :- 85 70
 
     [ --shut ] [ SHUT % ]
         :- Set threshold ( % ) for automatically powering the device OFF
@@ -39,7 +38,7 @@
 
     [ --force ] [ ARGS ACCORDINGLY ].....
         :- Same as [ --set ] [ DISABLE % ] [ ENABLE % ]
-        :---  or   [ --shut ] [ SHUT % ]
+        :---    or [ --shut ] [ SHUT % ]
         :---  Except for no limitations are applied
 
     [ --enable ] [ % / time ]
@@ -73,21 +72,34 @@
         :- Reset battery statistics
 
     [ --reconf ]
-        :- Re-configure sysfs references (plug in charger first!)
+        :- Re-configure sysfs references ( plug in charger first! )
 
     [ --help ]
         :- Show this help message
 
 ### Notes
 
+* It has been built and tested against 'mksh R52'
 * Device must be charging while installing / [ --reconf ]
-* 85 70 for daemon and 20 for shut is optimal balance between battery lifespan and available capacity
+* 85 70 for daemon and 20 for shut is optimal balanced configuration
 * [ --statreset ] might not work on some ROMs
-* It re-installs busybox to /cache/mcc_busybox ( about 1MB )
+* It re-installs busybox to /cache/mcc_busybox ( about 1MB, don't remove )
 * Every task is executed once per 10 seconds
-* If you like my work, please consider making a donation
+* If you like my work, feel free to donate to me
+
+### Thanks to
+
+* @VR25 for his 'Magic Charging Switch', an inspiration to beta versions of mcc ( unreleased )
+* @CCL108XIV for being my beta testing and UI improvements specialty
+* Many other resources of my shell script code ( i.e., stackoverflow )
+* Me for developing, organizing, and perfecting mcc
 
 ### Changelog
+
+##### Jalebis MR1
+
+* Changed defaults to 85 70 for daemon
+* Updated README
 
 ##### Jalebis MR
 
