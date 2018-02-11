@@ -1,7 +1,7 @@
 id=mcc
 name=MC's Charging Controller
-version=Jalebis MR1
-versionCode=201802102
+version=1.1
+versionCode=201802111
 author=MCMotherEffin' @ XDA Developers
 description=A charging controller utility, for to extend battery life
 template=1400

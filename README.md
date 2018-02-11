@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201802102 )
+###### mcc README ( 201802111 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar
@@ -50,6 +50,9 @@
     [ --disable ] [ % / time ]
         :- Same as above, except for charging is disabled
 
+    [ --donate ]
+        :- Redirect to my paypal donate page
+
     [ --daemon ]
         :- Toggle Magisk daemon mode ON / OFF
         :---  Default  :- ON
@@ -95,6 +98,23 @@
 * Me for developing, organizing, and perfecting mcc
 
 ### Changelog
+
+##### 1.1
+
+* Fixed battery stats not resetting
+* Check busybox version instead of comparing at binary level
+*  --------    Speeds up environment setup
+* Added [ --donate ]
+*  --------    Use it if you like my work
+* Charging will be enabled by installer if mcc is detected
+*  --------    which make 'mcc --enable' no longer needed
+* Service will always return if no references already set
+*  --------    In such case, run [ --reconf ] and then [ --ckservice ]
+* Rebirth based on computer coding
+*  --------    Previous versions were coded / built using my phone ( with DroidEdit )
+* For advanced users only ( user request )
+*  --------    It will always use return instead of exit
+*  --------    Useful for using it's internal functions outside ( via 'source mcc' )
 
 ##### Jalebis MR1
 
