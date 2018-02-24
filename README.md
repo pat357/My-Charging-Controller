@@ -1,157 +1,152 @@
 ###### MC's Charging Controller
-###### mcc README ( 201802111 )
+###### mcc README ( 201802251 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar
 
 ### Links
 
-* [Source](https://github.com/Magisk-Modules-Repo/MC-s-Charging-Controller)
-* [Support](https://forum.xda-developers.com/apps/magisk/mcs-charging-controller-t3739371)
-* [Donate](https://paypal.me/JayminSuthar)
-* [Battery University](http://batteryuniversity.com/learn/article/how_to_prolong_lithium_based_batteries)
+* [Source code](https://github.com/Magisk-Modules-Repo/MC-s-Charging-Controller)
+* [Support thread](https://forum.xda-developers.com/apps/magisk/mcs-charging-controller-t3739371)
+* [Battery university](http://batteryuniversity.com/learn/article/how_to_prolong_lithium_based_batteries)
+* [Donate to Me](https://paypal.me/JayminSuthar)
+
+### Introduction
+
+* ##### Control when to enable / disable charging on your device
+* ##### Contains some of basic thangs for extending battery life
 
 ### Description
 
-* ##### It is meant to prolong Lithium batteries' life by controlling charging
-* ##### It allows you to turn charging ON / OFF by rules you define or manually
-* ##### In daemon mode, charging is controlled automatically by these twos: up_ / down_threshold
-* ##### Also you can manually set specific ON / OFF time period or desired percent
-* ##### Talking more there are battery stats reset and some other useful info
-* ##### Everything has error handling, so don't worry while configuring
+* The main goal is to extend lithium batteries' life
+* You can configure it to work automatically or run it manually, too
+* With daemon mode ( background activity ), you get two features
+* 1) Auto switch
+* it has two thresholds, 1) up_threshold and 2) down_threshold
+* it will keep the battery level within these two thresholds
+* while the device is plugged in
+* 2) Auto shut
+* it operates based on shut_threshold
+* it will power-off the device if battery level goes below it
+* With manual run, you can enable / disable for
+* either some specified time or certain percentages
+* You can also reset battery statistics with this
+* Some other options are listed in 'Arguments can be' section
 
-### Usage
+### How to use
 
-##### mcc [ ARG_1 ] [ ARG_2 ].....
+* You should use a terminal for the purpose
+* most custom ROMs come with it
+* else uou can install it from Play Store or F-Droid
+* You don't need to run "su" first, but better if done
+* You also don't need to worry while calling mcc
+* as it has error-checking for every user input taken
+* From Terminal, run "mcc [ ARG_1 ] [ ARG_2 ] [ ARG_3 ]..."
 
-##### Arguments can be :
+##### Arguments can be
 
-    [ --set ] [ DISABLE % ] [ ENABLE % ]
-        :- Set thresholds ( % ) used by daemon mode for turning charging ON / OFF
-        :- This will keep battery level within set boundaries while the device is plugged
-        :---  [ ENABLE % ] is optional
-        :---  Defaults :- 85 70
+    [ --switch ] [ DISABLE % ] [ ENABLE % ]
+        :- Set thresholds ( % ) used by auto awitch
+        :-- [ ENABLE % ] is optional
+        :-- Defaults :- 80 70
 
     [ --shut ] [ SHUT % ]
-        :- Set threshold ( % ) for automatically powering the device OFF
-        :---  Default  :- 20
+        :- Set threshold ( % ) used by auto shut
+        :-- Default  :- 20
 
     [ --force ] [ ARGS ACCORDINGLY ].....
-        :- Same as [ --set ] [ DISABLE % ] [ ENABLE % ]
-        :---    or [ --shut ] [ SHUT % ]
-        :---  Except for no limitations are applied
+        :- Same as [ --switch ] [ DISABLE % ] [ ENABLE % ]
+        :--     or [ --shut ] [ SHUT % ]
+        :-- Except for no limitations are applied
 
-    [ --enable ] [ % / time ]
-        :- Enable charging for given time / until certain % 
-        :---  [ % / time ] is optional
-        :---  Time can be 30 ( 30 seconds ), 8m ( 8 minutes ) or 2h ( 2 hours )
-        :---  Level can be 60%, 55% or 19%
+    [ --enable ] [ % / TIME ]
+        :- Enable charging for given time / until certain %
+        :-- [ % / TIME ] is optional
+        :-- Time can be 40s, 10m, or 1h
+        :-- and level must be as 65%
 
     [ --disable ] [ % / time ]
         :- Same as above, except for charging is disabled
 
-    [ --donate ]
-        :- Redirect to my paypal donate page
+    [ --auto-switch ]
+        :- Toggle auto switch ON / OFF
+        :-- Default  :- ON
 
-    [ --daemon ]
-        :- Toggle Magisk daemon mode ON / OFF
-        :---  Default  :- ON
+    [ --auto-shut ]
+        :- Toggle auto shut ON / OFF
+        :-- Default  :- ON
 
-    [ --autoshut ]
-        :- Toggle automatic power-off ON / OFF
-        :---  Default  :- ON
+    [ --daemon-mode ]
+        :- Toggle daemon mode ON / OFF
+        :-- Default  :- ON
 
-    [ --ckservice ]
-        :- Check whether mcc Service is running
-        :---  If not, fork a new process for it
+    [ --re-daemon ]
+        :- Resume / Run the mcc daemon
 
     [ --default ]
         :- Reset all thresholds to defaults
 
     [ --info ]
-        :- Show some useful information about current status
+        :- Show information about current status
 
-    [ --statreset ]
+    [ --rm-stats ]
         :- Reset battery statistics
 
     [ --reconf ]
-        :- Re-configure sysfs references ( plug in charger first! )
+        :- Re-configure sysfs references
 
     [ --help ]
         :- Show this help message
 
 ### Notes
 
-* It has been built and tested against 'mksh R52'
 * Device must be charging while installing / [ --reconf ]
-* 85 70 for daemon and 20 for shut is optimal balanced configuration
-* [ --statreset ] might not work on some ROMs
-* It re-installs busybox to /cache/mcc_busybox ( about 1MB, don't remove )
-* Every task is executed once per 10 seconds
-* If you like my work, feel free to donate to me
+* 0 and 100 are not valid thresholds, so will result in error
+* [ --rm-stats ] might not work on some ROMs
+* If you upgrade from a version older than 1.2.1
+* --> configurations from older version will not be restored
+* For developers
+* --> it has been built against mksh, not bash
+* --> if you add anything to it, please create a pull request
 
 ### Thanks to
 
-* @VR25 for his 'Magic Charging Switch', an inspiration to beta versions of mcc ( unreleased )
-* @CCL108XIV for being my beta testing and UI improvements specialty
+* @VR25 for 'Magic Charging Switch',
+* which inspired me to develop mcc ( mcc was built from scratch )
+* @CCL108XIV for being the mcc development MVP
 * Many other resources of my shell script code ( i.e., stackoverflow )
 * Me for developing, organizing, and perfecting mcc
 
-### Changelog
+### Donate to Me
 
-##### 1.1
+* All of the work I have done comes out of my free time
+* I'm a 17 yr old student and I do it all as a hobby
+* so if you like my work, and want to encourage development
+* and also are capable of donating me a few bucks
+* Please feel free to donate to me ( run "mcc --donate" )
 
-* Fixed battery stats not resetting
-* Check busybox version instead of comparing at binary level
-*  --------    Speeds up environment setup
-* Added [ --donate ]
-*  --------    Use it if you like my work
-* Charging will be enabled by installer if mcc is detected
-*  --------    which make 'mcc --enable' no longer needed
-* Service will always return if no references already set
-*  --------    In such case, run [ --reconf ] and then [ --ckservice ]
-* Rebirth based on computer coding
-*  --------    Previous versions were coded / built using my phone ( with DroidEdit )
-* For advanced users only ( user request )
-*  --------    It will always use return instead of exit
-*  --------    Useful for using it's internal functions outside ( via 'source mcc' )
+### What's new
 
-##### Jalebis MR1
+##### 1.2.1
 
-* Changed defaults to 85 70 for daemon
-* Updated README
+* All previous versions are considered incompatible
 
-##### Jalebis MR
 
-* Some minor, but important changes
-
-##### Jalebis
-
-* Moved mcc-check command to mcc as [ --ckservice ]
-
-##### Imerty MR
-
-* Fixed mcc-check running exec instead of fork
-* Fixed service logging with mcc-check
-
-##### Imerty
-
-* Added a new command 'mcc-check'
-*  --------    Use it if you feel mcc Service has been killed
-
-* README is improved and partly rewritten
-*  --------    thanks to [0xCA](https://t.me/Hi10pH264)
-
-##### Handwo
-
-* Fixed a bug with never resuming charging with some typical kernels
-* Daemon is more stable, now checking battery current
-* Battery stats are now reset on power-off
-* [ --reset ] is now [ --set ]
-*  --------    thanks to [0xCA](https://t.me/Hi10pH264) for his extensive testing, reporting and reasoning
-
-* Fixed rebooting while checking compatibility
-* Added /sys/module into references lookup path
-* Improved charging control
-* Better environment setup
-* Other code improvements
+* Fix installations for Magisk Manager 5.6.0+
+* Fix some faulty busybox setup code
+* Correct some terminology ( see 'Arguments can be' )
+* Improve the [ --re-daemon ] option
+* Change defaults to 80 70 ( it be optimal )
+* Rewrite README ( which directly means [ --help ] )
+* Add messages to UI for some tasks
+* Reduce checking intervals to 10ms
+* Reduce max switches to two from four
+* Add error handling for new code
+* Port commit from Magisk to mcc Installer
+* --> 'Round sizes to nearest integer'
+* --> also repair image first if found
+* Put errors to a separate logfile
+* Rebase some tests on common observations
+* Remove and re-write some pieces of code
+* For developers
+* --> Revert the source mcc feature, to keep the code clean
