@@ -1,26 +1,25 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201802281 )
+# mcc Installer ( 201803051 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
 
 # This file is a part of the project "MC's Charging Controller ( mcc )"
 
-# I MCMotherEffin', hereby announce that "MC's Charging Controller"
+# I MCMotherEffin', hereby declare that "MC's Charging Controller"
 ## is licensed under the GNU GPL v3 and you are allowed to modify or
 ## re-distribute it under the terms of the GNU GPL v3 as published by
-## the Free Software Foundation or any later version
+## the Free Software Foundation or any later version provided that you
+## include the above copyright notice and this declaration
 
-# Given the above rights, you are required to inform me of
-## 1) any modifications ( public / private ) you do and / or
-## 2) if you re-distribute it ( which is definitely public )
+# Given the above rights, you are required to inform me
+## if you re-distribute it ( wherever you do, it is public )
 ## you should do so by sending me a Private Message at xda-developers.com
-## Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>
+
+# Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>
 
 if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
-
-    # Abort recovery installation, kernel issues
     fd=/proc/self/fd/$2;
 
     ui_print() { echo -e "ui_print $1\nui_print" >>$fd; };
@@ -29,20 +28,18 @@ if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
     ui_print '- Abort :- Please install in boot mode';
     ui_print ' ';  ui_print ' ';
     exit 1;
+elif [ $(magisk -V) -lt 1400 ]; then
+    echo -e "\n\nAbort :- Please install Magisk >= 1400\n"; exit 1;
 fi;
 echo -e "\n\n";
 
-# Define variables ( not all )
+# Define universal functionals
 zip_file="$3";
-
-# Define functions ( not all )
 
 abort() { echo -e "- Abort :- $1\n"; exit 1; };
 
-# Get the system minding A / B devices
+# Find BusyBox, Magisk mountpoint and set BusyBox applets up
 system=/system; if [ -d /system_root ]; then system=/system_root/system; fi;
-
-# Find BusyBox and Magisk mount point
 for magisk_bb in $(find /data -type f -name busybox | grep /magisk/busybox$;); do
     if $magisk_bb | grep 'topjohnwu ' >/dev/null; then
         image=${magisk_bb%/*/*}/magisk.img;
@@ -64,13 +61,10 @@ done;
 if [ -z $magisk_bb -o -z $real_mount_point ]; then
     abort 'Could not set environment based on Magisk';
 fi;
-
-# Set BusyBox up ( using hardlinks )
 tmp_dir=/dev/mcc_tmp;
 tmp_bin=$tmp_dir/busybox;
 rm -rf $tmp_bin; mkdir -p $tmp_bin;
-cp -a $magisk_bb $tmp_bin;
-$tmp_bin/busybox --install $tmp_bin;
+$magisk_bb --install -s $tmp_bin/;
 export PATH=$tmp_bin:$PATH;
 
 # Print module banner
@@ -85,13 +79,13 @@ echo -e "- Please make sure the device is charging\n";
 sleep 5;
 echo -e "- Checking compatibility...\n";
 tmp_file=$tmp_dir/cached;
-find /sys/devices /sys/module -type f -name uevent >$tmp_file;
+find -L /sys/class /sys/devices /sys/module -type f -name uevent >$tmp_file;
 
-is_charging() { grep -q ^POWER_SUPPLY_STATUS=Charging$ $uevent; };
+is_charging() { grep -q ^POWER_SUPPLY_STATUS=[Cc]harging$ $uevent; };
 
 while read uevent; do
     chmod u+r $uevent;
-    if grep -q ^POWER_SUPPLY_NAME=.*batt.*$ $uevent && is_charging; then
+    if grep -q ^POWER_SUPPLY_NAME=.*[Bb]att.*$ $uevent && is_charging; then
         i=1;
         for ref in ${uevent%/*}/*; do
             if [[ -f $ref ]]; then
@@ -102,42 +96,21 @@ while read uevent; do
                 continue;
             fi; chmod u+r $ref;
             case $(cat $ref) in
-                1       )
-                    echo 0 >$ref;        c_ON=1;        c_OFF=0;
-                ;;
-                0       )
-                    echo 1 >$ref;        c_ON=0;        c_OFF=1;
-                ;;
-                on      )
-                    echo off >$ref;      c_ON=on;       c_OFF=off;
-                ;;
-                off     )
-                    echo on >$ref;       c_ON=off;      c_OFF=on;
-                ;;
-                true    )
-                    echo false >$ref;    c_ON=true;     c_OFF=false;
-                ;;
-                false   )
-                    echo true >$ref;     c_ON=false;    c_OFF=true;
-                ;;
-                enable  )
-                    echo disable >$ref;  c_ON=enable;   c_OFF=disable;
-                ;;
-                disable )
-                    echo enable >$ref;   c_ON=disable;  c_OFF=enable;
-                ;;
-                enabled )
-                    echo disabled >$ref; c_ON=enabled;  c_OFF=disabled;
-                ;;
-                disabled)
-                    echo enabled >$ref;  c_ON=disabled; c_OFF=enabled;
-                ;;
-                *       )
-                    continue;
-                ;;
-            esac; usleep 10000;
+                1       ) c_ON=1;        c_OFF=0;        ;;
+                0       ) c_ON=0;        c_OFF=1;        ;;
+                on      ) c_ON=on;       c_OFF=off;      ;;
+                off     ) c_ON=off;      c_OFF=on;       ;;
+                true    ) c_ON=true;     c_OFF=false;    ;;
+                false   ) c_ON=false;    c_OFF=true;     ;;
+                enable  ) c_ON=enable;   c_OFF=disable;  ;;
+                disable ) c_ON=disable;  c_OFF=enable;   ;;
+                enabled ) c_ON=enabled;  c_OFF=disabled; ;;
+                disabled) c_ON=disabled; c_OFF=enabled;  ;;
+                *       ) continue;                      ;;
+            esac;
+            echo $c_OFF >$ref; usleep 100000;
             if ! is_charging; then
-                echo $c_ON >$ref; usleep 10000;
+                echo $c_ON >$ref; usleep 100000;
                 if is_charging; then
                     eval switches_$i=\"$ref $c_ON $c_OFF\"; let i++;
                     if [[ $i -eq 3 ]]; then break 2; fi;
@@ -149,11 +122,11 @@ while read uevent; do
     fi;
 done <$tmp_file;
 if [[ $i -eq 1 ]]; then
-    abort "Your device don't support these functionalities";
+    abort 'Your device does not support these functionalities';
 fi;
 echo -e "- OK\n\n\n";
 
-# Create or resize image for installation
+# Get image ready and mounted for un-installation
 image=${image%/*}/magisk_merge.img;
 if [[ -f $image ]]; then
     echo -e "- $image exists\n";
@@ -166,100 +139,70 @@ if [[ -f $image ]]; then
     img_total=$(imgsize_test 2);
     if [[ $(imgsize_test 1) -eq $img_total ]]; then
         echo -e "- Expanding $image...\n";
-        resize2fs $image $((img_total + 64))M;
+        resize2fs $image $((img_total + 32))M;
     fi;
 else
     echo -e "- Creating $image...\n";
     make_ext4fs -l 64M $image >&2;
 fi;
-
-is_mounted() { grep -q " $mount_point " /proc/mounts; };
-
-# Mount the image
 echo -e "- Mounting $image...\n";
 mount_point=/dev/mcc_img;
 mkdir $mount_point;
-for minor in 0 $(seq -s ' ' 7); do
+
+is_mounted() { grep -q " $mount_point " /proc/mounts; };
+
+for minor in $(seq -s ' ' 7); do
     loop_device=/dev/block/loop$minor;
     if [[ ! -b $loop_device ]]; then mknod $loop_device b 7 $minor; fi;
     if losetup $loop_device $image; then
-        mount -t ext4 -o loop $loop_device $mount_point;
+        mount -t ext4 -o rw,noatime $loop_device $mount_point;
     fi;
     if is_mounted; then break; fi;
 done;
 if ! is_mounted; then abort "Could not mount $image"; fi;
 
-get_prop() { sed -n s/^$1=//p $2; };
-
-# Proceed to install / uninstall
+# Proceed to un-installation
 mod_dir=$mount_point/mcc; inst_mod_dir=$real_mount_point/mcc;
+
+get_prop() { sed -n s/^$1=//p $2; };
 
 which_installed() { get_prop versionCode $inst_mod_dir/module.prop || echo 0; };
 
-if [[ $(get_prop versionCode $mod_dir/module.prop || echo $(which_installed)) -ge 201802281 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || echo $(which_installed)) -ge 201803051 ]]; then
 
     # Uninstall
     echo -e "- Same or newer already installed\n";
-    echo -e "- Attention :- Uninstalling...\n";
-
+    echo -e "- Attention :- Performing a complete uninstall...\n";
     rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
-    for proc_id in $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }';); do
-        kill $proc_id;
-    done;
+    kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ';);
     if inst_mcc=$(ls $system/xbin/mcc || ls $system/bin/mcc); then
         if [[ $(magisk -V) -ge 1410 ]]; then
             umount $inst_mcc; rm -f $inst_mcc; umount ${inst_mcc%/*};
-        else
-            echo '#!/system/bin/sh' >$inst_mcc; echo "echo \"It's uninstalled\"" >>$inst_mcc;
         fi;
     fi;
 else
 
     # Install
-
-    # Create all needed directories
     rm -rf $mod_dir; mkdir -p $mod_dir/docs $mod_dir/cache;
-
-    # Extract module files
     echo -e "- Extracting module files...\n";
     unzip -o "$zip_file" 'system/*' mcc.conf service.sh module.prop -d $mod_dir >&2;
-    unzip -o "$zip_file" LICENSE.md README.md -d $mod_dir/docs >&2;
+    unzip -o "$zip_file" README.md -d $mod_dir/docs >&2;
     bin_dir=$mod_dir/system/xbin;
     if [[ ! -d $system/xbin ]]; then
-
-        # Target tree missing from system root
-        ## thus, Magic Mounting can be too dangerous
-        ## according to a conversation between @topjohnwu and @rovo89
-        ## So, install mcc in system binaries directory
-        ## for it is guaranteed to exist
-
-        # An important thing
-        ## some devices ( Samsung ) don't like adding to system binaries
-        ## ( maybe they need those binaries live while Magic Mounting happens )
-        ## a workaround for that is to install mcc in /sbin
-        ## but, doing that seem to break MagiskHide policies
-        ## to prevent that, we should possibly see SuperSU's BINDSBIN code
-        ## which I'm currently unable to adapt to this module
-        ## So, that's currently not available
-        mv $bin_dir $mod_dir/system/bin;
-        bin_dir=$mod_dir/system/bin;
+        mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
     fi;
 
     set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/mcc.conf; };
 
-    # Don't restore confs for this old versions
     if [[ $(which_installed) -ge 201802251 ]]; then
         if old_conf=$(ls $inst_mod_dir/mcc.conf); then
 
-            # Restore settings
-            echo -e "- Restoring settings...\n";
+            echo -e "- Restoring configurations...\n";
             for prop in auto_shut auto_switch daemon_mode up_threshold down_threshold shut_threshold; do
                 set_prop $prop $(get_prop $prop $old_conf);
             done;
         fi;
     fi;
-
-    # Set uevent and switches in mcc.conf
     set_prop uevent $uevent;
     for i in 1 2; do
         switch="$(eval echo \$switch_$i)";
@@ -268,11 +211,7 @@ else
             * ) set_prop switch_$i "$switch"; ;;
         esac;
     done;
-
-    # Enable Magic Mount
     touch $mod_dir/auto_mount;
-
-    # Update info for Magisk Manager
     mkdir $inst_mod_dir;
     touch $inst_mod_dir/update;
     cp -f $mod_dir/module.prop $inst_mod_dir;
@@ -289,16 +228,13 @@ else
         done;
     };
 
-    # Set permissions
     echo -e "- Setting permissions...\n";
     set_perm_recursive $mod_dir    0 0644;
     set_perm_recursive $bin_dir 2000 0755;
 fi;
 
-# Unmount the image
+# Finalize
 umount $mount_point; losetup -d $loop_device;
-
-# Cleanup
 rmdir $mount_point; rm -rf $tmp_dir;
 echo -e "- Done\n\n\n";
 exit 0;
