@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803051 )
+# mcc Installer ( 201803061 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -19,6 +19,7 @@
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>
 
+# Abort for this cases
 if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
     fd=/proc/self/fd/$2;
 
@@ -79,7 +80,7 @@ echo -e "- Please make sure the device is charging\n";
 sleep 5;
 echo -e "- Checking compatibility...\n";
 tmp_file=$tmp_dir/cached;
-find -L /sys/class /sys/devices /sys/module -type f -name uevent >$tmp_file;
+find -L /sys/class /sys/devices /sys/module -type f -name uevent | grep -E '[Bb]att|[Cc]harg' >$tmp_file;
 
 is_charging() { grep -q ^POWER_SUPPLY_STATUS=[Cc]harging$ $uevent; };
 
@@ -151,7 +152,7 @@ mkdir $mount_point;
 
 is_mounted() { grep -q " $mount_point " /proc/mounts; };
 
-for minor in $(seq -s ' ' 7); do
+for minor in $(seq -s ' ' 7;); do
     loop_device=/dev/block/loop$minor;
     if [[ ! -b $loop_device ]]; then mknod $loop_device b 7 $minor; fi;
     if losetup $loop_device $image; then
@@ -168,14 +169,14 @@ get_prop() { sed -n s/^$1=//p $2; };
 
 which_installed() { get_prop versionCode $inst_mod_dir/module.prop || echo 0; };
 
-if [[ $(get_prop versionCode $mod_dir/module.prop || echo $(which_installed)) -ge 201803051 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed;) -ge 201803061 ]]; then
 
     # Uninstall
     echo -e "- Same or newer already installed\n";
-    echo -e "- Attention :- Performing a complete uninstall...\n";
+    echo -e "- Attention :- Cleaning installation...\n";
     rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
     kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ';);
-    if inst_mcc=$(ls $system/xbin/mcc || ls $system/bin/mcc); then
+    if inst_mcc=$(ls $system/xbin/mcc || ls $system/bin/mcc;); then
         if [[ $(magisk -V) -ge 1410 ]]; then
             umount $inst_mcc; rm -f $inst_mcc; umount ${inst_mcc%/*};
         fi;
@@ -195,7 +196,7 @@ else
     set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/mcc.conf; };
 
     if [[ $(which_installed) -ge 201802251 ]]; then
-        if old_conf=$(ls $inst_mod_dir/mcc.conf); then
+        if old_conf=$(ls $inst_mod_dir/mcc.conf;); then
 
             echo -e "- Restoring configurations...\n";
             for prop in auto_shut auto_switch daemon_mode up_threshold down_threshold shut_threshold; do
@@ -205,7 +206,7 @@ else
     fi;
     set_prop uevent $uevent;
     for i in 1 2; do
-        switch="$(eval echo \$switch_$i)";
+        switch="$(eval echo \$switch_$i;)";
         case $switch in
             '') break;                        ;;
             * ) set_prop switch_$i "$switch"; ;;

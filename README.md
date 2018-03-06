@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201803051 )
+###### mcc README ( 201803061 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -170,6 +170,10 @@
   --> Please feel free to donate to me ( just a tea, run "mcc --donate" )
 
 ### What's new
+
+##### 1.2.4.MR
+
+* Fix Magisk Manager crashes
 
 ##### 1.2.4
 

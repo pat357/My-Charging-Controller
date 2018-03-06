@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201803051 )
+# mcc Main ( 201803061 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -114,13 +114,13 @@ is_runningd() {
 };
 
 are_refs_set() {
-    test $(uevent_f) != dummy_Events && test $(get_prop switch_1) != dummy_Switch;
+    test $(uevent_f) != dummy_Events && test $(get_prop switch_1;) != dummy_Switch;
 };
 
 reset_perms() {
     if are_refs_set; then
-        chmod u+r $(uevent_f) $(get_prop switch_1 | awk '{ print $1 }');
-        sec_switch=$(get_prop switch_2 | awk '{ print $1 }');
+        chmod u+r $(uevent_f) $(get_prop switch_1 | awk '{ print $1 }';);
+        sec_switch=$(get_prop switch_2 | awk '{ print $1 }';);
         if [[ $sec_switch != dummy_Switch ]]; then chmod u+r $sec_switch; fi;
     fi;
 };
@@ -151,7 +151,7 @@ show_help() {
 
 switch_() {
     for i in 1 2; do
-        switch=$(get_prop switch_$i | awk '{ print $1 }');
+        switch=$(get_prop switch_$i | awk '{ print $1 }';);
         if [[ $switch == dummy_Switch ]]; then break; fi;
         case $1 in
             ON )
@@ -238,7 +238,9 @@ set_ctrl_refs() {
     echo -e "- Attention :- Please make sure the device is charging\n";
     sleep 5;
     echo -e "- Re-configuring sysfs references...\n";
-    find -L /sys/class /sys/devices /sys/module -type f -name uevent >$uevent_cache;
+
+    ## get all possible references
+    find -L /sys/class /sys/devices /sys/module -type f -name uevent | grep -E '[Bb]att|[Cc]harg' >$uevent_cache;
     while read uevent; do
         chmod u+r $uevent;
 
@@ -334,11 +336,11 @@ charge() {
 
 # Switch logger to mod_dir
 if [[ ! $no_file_logs ]]; then
-    echo -e "mcc versionCode == 201803051" >$ver_log;
+    echo -e "mcc versionCode == 201803061" >$ver_log;
     echo -e "magisk versionCode == $(magisk -V)\n\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
-        echo "$prop :- $(getprop $prop)" >>$ver_log;
+        echo "$prop :- $(getprop $prop;)" >>$ver_log;
     done;
     echo -e "\n\n" >>$ver_log;
     set +x; set -x 2>>$ver_log;
@@ -353,7 +355,7 @@ case $1 in
         test_refs; reset_perms;
         echo -e "- Battery status\n";
         echo "-- battery level :- $(batt_level)";
-        echo "-- battery health :- $(get_prop POWER_SUPPLY_HEALTH $(uevent_f))";
+        echo "-- battery health :- $(get_prop POWER_SUPPLY_HEALTH $(uevent_f);)";
         status='Not charging'; if is_charging; then status=Charging; fi;
         echo -e "-- charging status :- $status\n";
 
