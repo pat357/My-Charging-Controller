@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201803061 )
+# mcc Main ( 201803081 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -240,7 +240,8 @@ set_ctrl_refs() {
     echo -e "- Re-configuring sysfs references...\n";
 
     ## get all possible references
-    find -L /sys/class /sys/devices /sys/module -type f -name uevent | grep -E '[Bb]att|[Cc]harg' >$uevent_cache;
+    find /sys/devices /sys/module -type f -name uevent >$uevent_cache;
+
     while read uevent; do
         chmod u+r $uevent;
 
@@ -258,7 +259,7 @@ set_ctrl_refs() {
                 fi; chmod u+r $ref;
 
                 ## cycling through all, get a possible boolean switch
-                case $(cat $ref) in
+                case $(cat $ref;) in
                     1       ) c_ON=1;        c_OFF=0;        ;;
                     0       ) c_ON=0;        c_OFF=1;        ;;
                     on      ) c_ON=on;       c_OFF=off;      ;;
@@ -273,9 +274,10 @@ set_ctrl_refs() {
                 esac;
 
                 ## test whether that works correctly
-                echo $c_OFF >$ref; usleep 100000;
+                echo $c_OFF >$ref; sleep 0.2;
                 if ! is_charging; then
-                    echo $c_ON >$ref; usleep 100000;
+                    reset_stats >/dev/null;
+                    echo $c_ON >$ref; sleep 0.2;
                     if is_charging; then
 
                         ## yes it does, add it to mcc.conf
@@ -298,7 +300,7 @@ set_ctrl_refs() {
     echo -e "- Done\n";
 };
 
-# Function for [ --enable / --disable ] [ % / TIME ]
+# Function for [ -e / --enable / -d / --disable ] [ % / TIME ]
 
 charge() {
     turn_1=OFF; turn_2=ON; text=disabled; test='is_charging';
@@ -312,14 +314,14 @@ charge() {
             charge_acts;
             echo -e "- Charging $text until $2...\n";
             while [[ ! $(batt_level) -eq $level ]]; do
-                reset_perms; test_switch; usleep 100000;
+                reset_perms; test_switch; sleep 1;
             done;
         elif echo $2 | grep -Eq ^[0-9]+[smh]$; then
             charge_acts;
             echo -e "- Charging $text for $2...\n";
             setsid sleep $2;
             while ps | grep -v ' grep ' | grep -q " sleep $2$"; do
-                reset_perms; test_switch; usleep 100000;
+                reset_perms; test_switch; sleep 1;
             done;
         else
             abort 'Please give a valid argument';
@@ -336,8 +338,8 @@ charge() {
 
 # Switch logger to mod_dir
 if [[ ! $no_file_logs ]]; then
-    echo -e "mcc versionCode == 201803061" >$ver_log;
-    echo -e "magisk versionCode == $(magisk -V)\n\n" >>$ver_log;
+    echo -e "mcc versionCode == 201803081" >$ver_log;
+    echo -e "magisk versionCode == $(magisk -V;)\n\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
         echo "$prop :- $(getprop $prop;)" >>$ver_log;
@@ -348,10 +350,10 @@ fi;
 
 # Handle given arguments
 ## see the README for what they do
-if [[ $1 == --force ]]; then force=true; shift; fi;
+case $1 in -f|--force) force=true; shift; ;; esac;
 case $1 in
 
-    --info)
+    -i|--info)
         test_refs; reset_perms;
         echo -e "- Battery status\n";
         echo "-- battery level :- $(batt_level)";
@@ -375,13 +377,13 @@ case $1 in
         echo -e "-- daemon ( bg-activity ) status :- $status\n";
     ;;
 
-    --help) show_help;
+    -h|--help) show_help;
     ;;
 
-    --reconf) set_ctrl_refs;
+    -rc|--reconf) set_ctrl_refs;
     ;;
 
-    --rm-stats) reset_stats rm;
+    -r|--rm-stats) reset_stats rm;
     ;;
 
     --donate)
@@ -390,17 +392,17 @@ case $1 in
         am start https://paypal.me/JayminSuthar >/dev/null;
     ;;
 
-    --auto-shut)
+    -tp|--auto-shut)
         if ! $(auto_shut) && $(daemon_mode); then test_refs; fi;
         toggle auto_shut 'auto shut';
     ;;
 
-    --auto-switch)
+    -ts|--auto-switch)
         if ! $(auto_switch) && $(daemon_mode); then test_refs; fi;
         toggle auto_switch 'auto switch';
     ;;
 
-    --daemon-mode)
+    -dm|--daemon-mode)
         if ! $(daemon_mode); then
             if $(auto_shut) || $(auto_switch); then
                 test_refs;
@@ -411,13 +413,13 @@ case $1 in
         toggle daemon_mode 'daemon mode';
     ;;
 
-    --enable) test_refs; charge enable $2;
+    -e|--enable) test_refs; charge enable $2;
     ;;
 
-    --disable) test_refs; charge disable $2;
+    -d|--disable) test_refs; charge disable $2;
     ;;
 
-    --re-daemon)
+    -rd|--re-daemon)
         if $(daemon_mode); then
             if $(auto_shut) || $(auto_switch); then
                 test_refs; test_daemon;
@@ -431,7 +433,7 @@ case $1 in
 
     --launch-daemon)
         while $(auto_shut) || $(auto_switch) && $(daemon_mode); do
-            if ! are_refs_set; then sleep 2; continue; fi;
+            if ! are_refs_set; then sleep 3; continue; fi;
             reset_perms;
 
             ## automatic power-off
@@ -447,7 +449,7 @@ case $1 in
                     if is_charging; then switch_ OFF; unset no_ckcurrent; fi;
                 elif [[ $(batt_level) -le $(down_threshold) ]]; then
                     if is_charging; then
-                        if [[ ! $no_ckcurrent && $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -gt 0 ]]; then
+                        if [[ ! $no_ckcurrent && $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f);) -gt 0 ]]; then
                             switch_ OFF;
                         else
                             no_ckcurrent=true;
@@ -456,17 +458,17 @@ case $1 in
                     if ! is_charging; then switch_ ON; fi;
                 fi;
             fi;
-            usleep 100000;
+            sleep 1;
         done;
     ;;
 
-    --default)
+    -t|--default)
         set_prop shut_threshold 20;
         set_prop up_threshold 80; set_prop down_threshold 70;
         echo -e "- Reverted all the thresholds to defaults\n";
     ;;
 
-    --shut)
+    -p|--shut)
         if [[ ! -z $2 ]]; then
             if echo $2 | grep -Eq ^[0-9]+$; then
                 if [[ $2 -gt 20 || $2 -lt 5 ]]; then
@@ -485,7 +487,7 @@ case $1 in
         echo -e "- New value saved\n";
     ;;
 
-    --switch)
+    -s|--switch)
         if [[ ! -z $3 ]]; then
             test_level $3; test_level $2;
             if [[ $3 -gt $2 ]]; then
@@ -503,7 +505,7 @@ case $1 in
     ;;
 
     *)
-        echo -e "- Heyyo fella, invalid argument(s)\n";
+        echo -e "- Heyyo fella, invalid option(s)\n";
         sleep 1;
         show_help;
     ;;

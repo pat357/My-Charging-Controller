@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803061 )
+# mcc Installer ( 201803081 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -29,7 +29,7 @@ if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
     ui_print '- Abort :- Please install in boot mode';
     ui_print ' ';  ui_print ' ';
     exit 1;
-elif [ $(magisk -V) -lt 1400 ]; then
+elif [ $(magisk -V;) -lt 1400 ]; then
     echo -e "\n\nAbort :- Please install Magisk >= 1400\n"; exit 1;
 fi;
 echo -e "\n\n";
@@ -80,7 +80,7 @@ echo -e "- Please make sure the device is charging\n";
 sleep 5;
 echo -e "- Checking compatibility...\n";
 tmp_file=$tmp_dir/cached;
-find -L /sys/class /sys/devices /sys/module -type f -name uevent | grep -E '[Bb]att|[Cc]harg' >$tmp_file;
+find /sys/devices /sys/module -type f -name uevent >$tmp_file;
 
 is_charging() { grep -q ^POWER_SUPPLY_STATUS=[Cc]harging$ $uevent; };
 
@@ -96,7 +96,7 @@ while read uevent; do
             else
                 continue;
             fi; chmod u+r $ref;
-            case $(cat $ref) in
+            case $(cat $ref;) in
                 1       ) c_ON=1;        c_OFF=0;        ;;
                 0       ) c_ON=0;        c_OFF=1;        ;;
                 on      ) c_ON=on;       c_OFF=off;      ;;
@@ -109,9 +109,10 @@ while read uevent; do
                 disabled) c_ON=disabled; c_OFF=enabled;  ;;
                 *       ) continue;                      ;;
             esac;
-            echo $c_OFF >$ref; usleep 100000;
+            echo $c_OFF >$ref; sleep 0.2;
             if ! is_charging; then
-                echo $c_ON >$ref; usleep 100000;
+                dumpsys batterystats --reset >/dev/null;
+                echo $c_ON >$ref; sleep 0.2;
                 if is_charging; then
                     eval switches_$i=\"$ref $c_ON $c_OFF\"; let i++;
                     if [[ $i -eq 3 ]]; then break 2; fi;
@@ -137,8 +138,8 @@ if [[ -f $image ]]; then
     };
 
     e2fsck -pf $image >&2;
-    img_total=$(imgsize_test 2);
-    if [[ $(imgsize_test 1) -eq $img_total ]]; then
+    img_total=$(imgsize_test 2;);
+    if [[ $(imgsize_test 1;) -eq $img_total ]]; then
         echo -e "- Expanding $image...\n";
         resize2fs $image $((img_total + 32))M;
     fi;
@@ -162,24 +163,22 @@ for minor in $(seq -s ' ' 7;); do
 done;
 if ! is_mounted; then abort "Could not mount $image"; fi;
 
-# Proceed to un-installation
+# Proceed
 mod_dir=$mount_point/mcc; inst_mod_dir=$real_mount_point/mcc;
 
 get_prop() { sed -n s/^$1=//p $2; };
 
 which_installed() { get_prop versionCode $inst_mod_dir/module.prop || echo 0; };
 
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed;) -ge 201803061 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed;) -ge 201803081 ]]; then
 
     # Uninstall
     echo -e "- Same or newer already installed\n";
     echo -e "- Attention :- Cleaning installation...\n";
     rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
     kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ';);
-    if inst_mcc=$(ls $system/xbin/mcc || ls $system/bin/mcc;); then
-        if [[ $(magisk -V) -ge 1410 ]]; then
-            umount $inst_mcc; rm -f $inst_mcc; umount ${inst_mcc%/*};
-        fi;
+    if inst_mcc=$(ls $system/xbin/mcc || ls $system/bin/mcc;) && [[ $(magisk -V;) -ge 1410 ]]; then
+        umount $inst_mcc; rm -f $inst_mcc; umount ${inst_mcc%/*};
     fi;
 else
 
@@ -195,14 +194,11 @@ else
 
     set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/mcc.conf; };
 
-    if [[ $(which_installed) -ge 201802251 ]]; then
-        if old_conf=$(ls $inst_mod_dir/mcc.conf;); then
-
-            echo -e "- Restoring configurations...\n";
-            for prop in auto_shut auto_switch daemon_mode up_threshold down_threshold shut_threshold; do
-                set_prop $prop $(get_prop $prop $old_conf);
-            done;
-        fi;
+    if [[ $(which_installed) -ge 201802251 ]] && old_conf=$(ls $inst_mod_dir/mcc.conf;); then
+        echo -e "- Restoring configurations...\n";
+        for prop in auto_shut auto_switch daemon_mode up_threshold down_threshold shut_threshold; do
+            set_prop $prop $(get_prop $prop $old_conf;);
+        done;
     fi;
     set_prop uevent $uevent;
     for i in 1 2; do

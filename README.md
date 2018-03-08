@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201803061 )
+###### mcc README ( 201803081 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -64,63 +64,63 @@
 
 ##### Arguments can be
 
-    [ --switch ] [ DISABLE % ] [ ENABLE % ]
+    [ -s / --switch ] [ DISABLE % ] [ ENABLE % ]
         :- Set thresholds ( % ) used by auto awitch
         :-- [ ENABLE % ] is optional
         :-- Defaults :- 80 70
 
-    [ --shut ] [ SHUT % ]
+    [ -p / --shut ] [ SHUT % ]
         :- Set threshold ( % ) used by auto shut
         :-- Default  :- 20
 
-    [ --force ] [ ARGS ACCORDINGLY ]...
-        :- Same as [ --switch ] [ DISABLE % ] [ ENABLE % ]
-        :--     or [ --shut ] [ SHUT % ]
+    [ -f / --force ] [ ARGS ACCORDINGLY ]...
+        :- Same as [ -s ] [ DISABLE % ] [ ENABLE % ]
+        :--     or [ -p ] [ SHUT % ]
         :-- Except for all values are taken valid
 
-    [ --enable ] [ % / TIME ]
+    [ -e / --enable ] [ % / TIME ]
         :- Enable charging for given time / until certain %
         :-- [ % / TIME ] is optional
         :-- Time can be as 40s, 10m, or 1h
         :-- and level must be as 65%
 
-    [ --disable ] [ % / TIME ]
+    [ -d / --disable ] [ % / TIME ]
         :- Same as above, except for charging is disabled
 
-    [ --auto-switch ]
+    [ -ts / --auto-switch ]
         :- Toggle auto switch ON / OFF
         :-- Default  :- ON
 
-    [ --auto-shut ]
+    [ -tp / --auto-shut ]
         :- Toggle auto shut ON / OFF
         :-- Default  :- ON
 
-    [ --daemon-mode ]
+    [ -dm / --daemon-mode ]
         :- Toggle daemon mode ON / OFF
         :-- Default  :- ON
 
-    [ --re-daemon ]
+    [ -rd / --re-daemon ]
         :- Launch the daemon unless running
 
-    [ --default ]
+    [ -t / --default ]
         :- Reset all thresholds to defaults
 
-    [ --info ]
+    [ -i / --info ]
         :- Show info about current status
 
-    [ --rm-stats ]
+    [ -r / --rm-stats ]
         :- Reset battery statistics
 
-    [ --reconf ]
+    [ -rc / --reconf ]
         :- Re-configure sysfs references
 
-    [ --help ]
+    [ -h / --help ]
         :- Show this help message
 
 ### Keep in mind
 
 * mcc requires Magisk >= 1400 and does not support recovery installation
-* Device must be charging while installing mcc /  running [ --reconf ]
+* Device must be charging while installing mcc /  running [ -rc / --reconf ]
 * mcc will create upto four ( min. two ) processes for some stuff
   --> Except for the daemon, which ( if launched by Magisk on boot or
       by running [ --re-daemon ] ) needs only one process
@@ -171,9 +171,15 @@
 
 ### What's new
 
+##### 1.2.5
+
+* Fix Magisk Manager crashes ( recursive symlinks )
+* Add shorter options for convenience
+  --> implement suggestion by @psychoela
+
 ##### 1.2.4.MR
 
-* Fix Magisk Manager crashes
+* Fix Magisk Manager crashes ( larger buffers )
 
 ##### 1.2.4
 
