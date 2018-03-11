@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803111 )
+# mcc Installer ( 201803121 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -74,11 +74,11 @@ inst_mod_dir=$real_mount_point/mcc;
 
 abort() { echo -e "- Abort :- $1\n"; exit 1; }
 
-is_charging() { grep -q ^POWER_SUPPLY_STATUS=[Cc]harging$ $uevent; }
-
 get_prop() { sed -n s/^$1=//p $2; }
 
 set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/mcc.conf; }
+
+is_charging() { grep -q ^POWER_SUPPLY_STATUS=[Cc]harging$ $uevent; }
 
 which_installed() { get_prop versionCode $inst_mod_dir/module.prop || echo 0; }
 
@@ -137,7 +137,7 @@ while read uevent; do
             if ! is_charging; then
                 echo $c_ON >$ref; sleep 0.3;
                 if is_charging; then
-                    eval switches_$i=\"$ref $c_ON $c_OFF\"; let i++;
+                    eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
                     if [[ $i -eq 3 ]]; then break 2; fi;
                 fi;
             fi;
@@ -181,11 +181,11 @@ if ! grep -q " $mount_point " /proc/mounts; then
 fi;
 
 # Proceed to un-installation
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803111 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803121 ]]; then
 
     # Uninstall
     echo -e "- Same or newer already installed\n";
-    echo -e "- Attention :- Cleaning installation...\n";
+    echo -e "- Attention :- Uninstalling ( FATU )...\n";
     rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
     kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ');
     if inst_mcc=$(ls /system/xbin/mcc || ls /system/bin/mcc); then

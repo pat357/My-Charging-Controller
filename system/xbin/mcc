@@ -1,6 +1,6 @@
-#!/system/bin/sh
+#!/system/bin/ksh
 # MC's Charging Controller
-# mcc Main ( 201803111 )
+# mcc Main ( 201803121 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -145,7 +145,10 @@ test_switch() { if eval $test; then switch_ $turn_1; fi; }
 test_refs() {
     if ! are_refs_set; then
         echo -e "Attention :- No references set\n";
-        set_ctrl_refs;
+        while [[ $status != @(Y|y) ]]; do
+            echo -n '- Charger needs to be connected, is it ?? [ Y / n ] :- '; read status;
+        done;
+        no_warn=true; set_ctrl_refs;
     fi;
 }
 
@@ -153,7 +156,11 @@ test_daemon() {
     if ! is_runningd; then
         echo -e "- mcc daemon is not running, launching it...\n";
         (no_file_logs=true mcc --launch-daemon </dev/null >/dev/null 2>&1 &);
-        echo -e "- It is running now\n";
+        if ! is_runningd; then
+            abort 'Could not launch mcc daemon';
+        else
+            echo -e "- It is running now\n";
+        fi;
     else
         echo -e "- mcc daemon is already running\n";
     fi;
@@ -259,7 +266,9 @@ set_ctrl_refs() {
 
     ## reset previous switches
     for i in 1 2; do set_prop switch_$i dummy_Switch; done;
-    echo -e "- Attention :- Please make sure the device is charging\n";
+    if [[ ! $no_warn ]]; then
+        echo -e "- Attention :- Please make sure the device is charging\n";
+    fi;
     sleep 5;
     echo -e "- Re-configuring sysfs references...\n";
 
@@ -332,7 +341,6 @@ charge() {
     case $1 in
         enable )
             turn_1=ON; turn_2=OFF; text=enabled; test='! is_charging';
-            reset_perms; if is_charging; then switch_ OFF; fi;
         ;;
         disable)
             turn_1=OFF; turn_2=ON; text=disabled; test='is_charging';
@@ -342,7 +350,6 @@ charge() {
         if echo $2 | grep -Eq ^[0-9]+%$; then
             level=$(echo $2 | tr -d %);
             test_bound $level;
-            switch_ $turn_2;
             charge_acts;
             echo -e "- Charging $text until $2...\n";
             while [[ ! $(batt_level) -eq $level ]]; do
@@ -357,6 +364,7 @@ charge() {
             while ps | grep -q "^$sleep_pid "; do
                 reset_perms; test_switch; sleep 1;
             done;
+            switch_ $turn_2;
         else
             abort 'Please give a valid argument';
         fi;
@@ -371,7 +379,7 @@ charge() {
 
 # Switch logger to mod_dir
 if [[ ! $no_file_logs ]]; then
-    echo -e 'mcc versionCode == 201803111' >$ver_log;
+    echo -e 'mcc versionCode == 201803121' >$ver_log;
     echo -e "magisk versionCode == $(magisk -V)\n\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
@@ -384,7 +392,6 @@ fi;
 # Handle given arguments
 case $1 in -f|--force) force=true; shift; ;; esac;
 case $1 in
-
     -i|--info)
         test_refs; reset_perms;
         echo -e "- Battery status\n";
@@ -402,36 +409,28 @@ case $1 in
         echo "-- automatic power-off :- $status";
         if $(daemon_mode); then status=ON; else status=OFF; fi;
         echo -e "-- background daemon mode :- $status\n";
-
         if is_runningd; then status=Running; else status='Not running'; fi;
         echo -e "-- daemon ( bg-activity ) status :- $status\n";
     ;;
-
     -h|--help) exit_help;
     ;;
-
     -rc|--reconf) set_ctrl_refs;
     ;;
-
     -r|--rm-stats) reset_stats rm;
     ;;
-
     --donate)
         echo -e "- Heyyo!!! Thanks\n";
         sleep 2;
         am start https://paypal.me/JayminSuthar >/dev/null;
     ;;
-
     -tp|--auto-shut)
         if ! $(auto_shut) && $(daemon_mode); then test_refs; fi;
         toggle auto_shut 'auto shut';
     ;;
-
     -ts|--auto-switch)
         if ! $(auto_switch) && $(daemon_mode); then test_refs; fi;
         toggle auto_switch 'auto switch';
     ;;
-
     -dm|--daemon-mode)
         if ! $(daemon_mode); then
             if $(auto_shut) || $(auto_switch); then
@@ -442,13 +441,10 @@ case $1 in
         fi;
         toggle daemon_mode 'daemon mode';
     ;;
-
     -e|--enable) test_refs; charge enable $2;
     ;;
-
     -d|--disable) test_refs; charge disable $2;
     ;;
-
     -rd|--re-daemon)
         if $(daemon_mode); then
             if $(auto_shut) || $(auto_switch); then
@@ -460,19 +456,18 @@ case $1 in
             abort 'Please toggle daemon mode ON first';
         fi;
     ;;
-
     --launch-daemon)
         while $(auto_shut) || $(auto_switch) && $(daemon_mode); do
             if ! are_refs_set; then sleep 2; continue; else reset_perms; fi;
 
-            ## automatic power-off
+            ## auto shut
             if $(auto_shut); then
                 if [[ $(batt_level) -le $(shut_threshold) ]]; then
                     if ! is_charging; then reset_stats rm; poweroff; fi;
                 fi;
             fi;
 
-            ## automatic switching
+            ## auto switch
             if $(auto_switch); then
                 if [[ $(batt_level) -ge $(up_threshold) ]]; then
                     if is_charging; then switch_ OFF; unset no_ckcurrent; fi;
@@ -490,13 +485,11 @@ case $1 in
             sleep 1;
         done;
     ;;
-
-    -t|--default)
+    -df|--default)
         set_prop shut_threshold 20;
         set_prop up_threshold 80; set_prop down_threshold 70;
         echo -e "- Reverted all the thresholds to defaults\n";
     ;;
-
     -p|--shut)
         if [[ ! -z $2 ]]; then
             if echo $2 | grep -Eq ^[0-9]+$; then
@@ -516,7 +509,6 @@ case $1 in
             abort 'Please give a threshold';
         fi;
     ;;
-
     -s|--switch)
         if [[ ! -z $3 ]]; then
             test_level $3; test_level $2;
@@ -533,7 +525,6 @@ case $1 in
             abort 'Please give some thresholds';
         fi;
     ;;
-
     *)
         echo -e "- Heyyo fella, invalid option(s)\n";
         sleep 2;

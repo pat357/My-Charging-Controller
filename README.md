@@ -102,7 +102,7 @@
     [ -rd / --re-daemon ]
         :- Launch the daemon unless running
 
-    [ -t / --default ]
+    [ -df / --default ]
         :- Reset all thresholds to defaults
 
     [ -i / --info ]
@@ -141,7 +141,7 @@
 * Finally, as you have read all of the above and still need some help
   or you have some topic to be discussed about and you believe others
   might also be wondering the same, please use the official XDA thread
-* If you think you really have found a bug in mcc
+* If you think you have found a bug in mcc
   ( please always use common sense first, also see if you can fix it ),
   please report that at the thread, and also please include the following
 * 1) Nature of the bug ( how does it act / react, etc,... )

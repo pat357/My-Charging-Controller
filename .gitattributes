@@ -1,10 +1,11 @@
 # All files must have LF line-endings ( "\n" )
-# I have defined EOLs for each file here to have a list of files
+# This files should be alphabetically sorted for my convenience
+# I have defined EOLs for each file here to have a list of the project files
 
-service.sh text eol=lf
-README.md text eol=lf
-module.prop text eol=lf
-mcc.conf text eol=lf
-system/xbin/mcc text eol=lf
+mcc.conf                                   text eol=lf
 META-INF/com/google/android/updater-script text eol=lf
-META-INF/com/google/android/update-binary text eol=lf
+META-INF/com/google/android/update-binary  text eol=lf
+module.prop                                text eol=lf
+README.md                                  text eol=lf
+service.sh                                 text eol=lf
+system/xbin/mcc                            text eol=lf
