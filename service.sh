@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201803081 )
+# mcc Service ( 201803111 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -15,7 +15,7 @@
 
 # Given the above rights, you are required to inform me
 ## if you re-distribute it ( wherever you do, it is public )
-## you should do so by sending me a Private Message at xda-developers.com
+## You should do so by sending me a Private Message at xda-developers.com
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>
 
