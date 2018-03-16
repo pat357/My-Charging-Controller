@@ -1,48 +1,48 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803121 )
+# mcc Installer ( 201803161 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
 
 # This file is a part of the project "MC's Charging Controller ( mcc )"
 
-# I MCMotherEffin', hereby declare that "MC's Charging Controller"
-## is licensed under the GNU GPL v3 and you are allowed to modify or
-## re-distribute it under the terms of the GNU GPL v3 as published by
-## the Free Software Foundation or any later version provided that you
-## include the above copyright notice and this declaration
+# I MCMotherEffin', hereby declare that mcc is originally distributed from
+## me under the terms of the GNU GPL v3 and you are allowed to use, modify
+## or re-distribute the work done for mcc under v3 or any later version of
+## GNU GPL as published by the Free Software Foundation provided that this
+## declaration and the above copyright is included
 
-# Given the above rights, you are required to inform me
-## if you re-distribute it ( wherever you do, it is public )
-## You should do so by sending me a Private Message at xda-developers.com
+# mcc was entirely written to help people extend their device's battery by
+## controlling charging, without any kind of WARRANTY, and I will not take
+## responsibility for any damage, or just anything bad happened
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>
 
 # Pre-exec operations
 if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
-    for message in ' ' ' ' '- Abort :- Please install in boot mode' ' ' ' '; do
+    for message in ' ' '- mcc must be installed from booted Android, aborting...' ' '; do
         echo -e "ui_print $message\nui_print" >>/proc/self/fd/$2;
     done;
     exit 1;
 elif [ $(magisk -V) -lt 1410 ]; then
     echo ' '; echo ' ';
-    echo -e "Abort :- Please install Magisk >= 1410\n"; exit 1;
+    echo -e "- mcc must be installed alongside Magisk >= 1410, aborting...\n"; exit 1;
 else
-    echo ' '; echo ' ';
+    set -x; echo ' '; echo ' ';
 fi;
 
-# Find BusyBox, Magisk mountpoint and set BusyBox applets up
-for magisk_bb in $(find /data -type f -name busybox | grep /magisk/busybox$); do
+# Find BusyBox, Magisk mountpoint and set BusyBox up
+for magisk_bb in $(find /data -type f -name busybox | grep '/magisk/busybox$'); do
     if $magisk_bb | grep 'topjohnwu ' >/dev/null; then
         if image=$(ls ${magisk_bb%/*/*}/magisk.img); then
             for loop_device in /dev/block/loop*; do
                 if $magisk_bb losetup $loop_device | grep " $image$" >/dev/null; then
                     for real_mount_point in $(grep "^$loop_device " /proc/mounts | $magisk_bb awk '{ print $2 }' | grep -Ev '^/system|^/vendor'); do
-                        if grep ^com.google.android.gms.unstable$ $real_mount_point/.core/hidelist >/dev/null && [ -d $real_mount_point/lost+found ] && [ -d $real_mount_point/.core/service.d ]; then
-                            break 3;
-                        else
+                        if ! grep '^com.google.android.gms.unstable$' $real_mount_point/.core/hidelist >/dev/null || ! test -d $real_mount_point/lost+found || ! test -d $real_mount_point/.core/service.d; then
                             unset real_mount_point;
+                        else
+                            break 3;
                         fi;
                     done;
                 fi;
@@ -54,31 +54,32 @@ done;
 tmp_dir=/dev/mcc_tmp;
 tmp_bin=$tmp_dir/busybox;
 rm -rf $tmp_bin; mkdir -p $tmp_bin;
-$magisk_bb --install -s $tmp_bin/;
+cp -a $magisk_bb $tmp_bin/;
+$tmp_bin/busybox --install $tmp_bin/;
 export PATH=$tmp_bin:$PATH;
 if [ -z $magisk_bb ] || [ -z $real_mount_point ] || [ "$(which awk)" != $tmp_bin/awk ]; then
-    echo -e "- Abort :- Could not set environment based on Magisk\n"; exit 1;
+    echo -e "- Failed to set environment via Magisk, aborting...\n"; exit 1;
 fi;
 
-# Define variables
-## for tmp_dir, image, and real_mount_point, see the above
+# Define variables ( for missing see above )
 zip_file="$3";
 tmp_file=$tmp_dir/cached;
-image=${image%/*}/magisk_merge.img;
 mount_point=/dev/mcc_img;
 mod_dir=$mount_point/mcc;
 inst_mod_dir=$real_mount_point/mcc;
+image=${image%/*}/magisk_merge.img;
 
-# Define functions
-## they are hardcoded as per the Installer's needs
+# Define functions ( they are quite hardcoded )
 
-abort() { echo -e "- Abort :- $1\n"; exit 1; }
+abort() { printp "$1, aborting..."; exit 1; }
 
-get_prop() { sed -n s/^$1=//p $2; }
+printp() { echo -e "- $1\n"; }
+
+get_prop() { sed -n "s/^$1=//p" $2; }
 
 set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/mcc.conf; }
 
-is_charging() { grep -q ^POWER_SUPPLY_STATUS=[Cc]harging$ $uevent; }
+is_charging() { grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent; }
 
 which_installed() { get_prop versionCode $inst_mod_dir/module.prop || echo 0; }
 
@@ -89,85 +90,81 @@ imgsize_test() {
 set_perm_recursive() {
     find $1 | while read entry; do
         chown 0:$2 $entry;
-        chcon u:object_r:system_file:s0 $entry;
         if [[ ! -d $entry ]]; then chmod $3 $entry; else chmod 0755 $entry; fi;
+        chcon u:object_r:system_file:s0 $entry;
     done;
 }
 
 # Print the module banner
-echo -e "------------------------------------------------\n";
-echo -e "     MC's Charging Controller\n";
-echo -e "         by MCMotherEffin' @ XDA Developers\n";
-echo -e "------------------------------------------------\n\n\n";
+printp '------------------------------------------------'; echo ' ';
+printp "     MC's Charging Controller";
+printp "         by MCMotherEffin' @ XDA Developers";
+printp '------------------------------------------------'; echo ' ';
+echo ' '; echo ' '; echo ' ';
 
-# Test compatibility and set references
-## see the Main Script for documentation
-echo -e "- Please make sure the device is charging\n";
-sleep 5;
-echo -e "- Checking compatibility...\n";
+# Test compatibility and set references ( see the Main for documentation )
+printp 'Checking compatibility ( requires the battery be charging )...';
+sleep 3;
 find /sys/devices /sys/module -type f -name uevent >$tmp_file;
+i=1;
 while read uevent; do
-    chmod u+r $uevent;
-    if grep -q ^POWER_SUPPLY_NAME=.*[Bb]att.*$ $uevent && is_charging; then
-        i=1;
-        for ref in ${uevent%/*}/*; do
-            if [[ -f $ref ]]; then
-                if ! ls -l $ref | awk '{ print $1 }' | grep -q w; then
-                    continue;
-                else
-                    chmod u+r $ref;
+    if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $uevent; then
+        if is_charging; then
+            for ref in ${uevent%/*}/*; do
+                if [[ -f $ref ]]; then
+                    chmod u+rw $ref;
+                    case $(cat $ref) in
+                        1       ) c_ON=1;        c_OFF=0;        ;;
+                        0       ) c_ON=0;        c_OFF=1;        ;;
+                        on      ) c_ON=on;       c_OFF=off;      ;;
+                        off     ) c_ON=off;      c_OFF=on;       ;;
+                        true    ) c_ON=true;     c_OFF=false;    ;;
+                        false   ) c_ON=false;    c_OFF=true;     ;;
+                        enable  ) c_ON=enable;   c_OFF=disable;  ;;
+                        disable ) c_ON=disable;  c_OFF=enable;   ;;
+                        enabled ) c_ON=enabled;  c_OFF=disabled; ;;
+                        disabled) c_ON=disabled; c_OFF=enabled;  ;;
+                        *       ) continue;                      ;;
+                    esac;
+                    echo $c_OFF >$ref; sleep 0.3;
+                    if ! is_charging; then
+                        echo $c_ON >$ref; sleep 0.3;
+                        if is_charging; then
+                            eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
+                            if [[ $i -eq 3 ]]; then break 2; fi;
+                        fi;
+                    fi;
+                    echo $c_ON >$ref;
                 fi;
-            else
-                continue;
-            fi;
-            case $(cat $ref) in
-                1       ) c_ON=1;        c_OFF=0;        ;;
-                0       ) c_ON=0;        c_OFF=1;        ;;
-                on      ) c_ON=on;       c_OFF=off;      ;;
-                off     ) c_ON=off;      c_OFF=on;       ;;
-                true    ) c_ON=true;     c_OFF=false;    ;;
-                false   ) c_ON=false;    c_OFF=true;     ;;
-                enable  ) c_ON=enable;   c_OFF=disable;  ;;
-                disable ) c_ON=disable;  c_OFF=enable;   ;;
-                enabled ) c_ON=enabled;  c_OFF=disabled; ;;
-                disabled) c_ON=disabled; c_OFF=enabled;  ;;
-                *       ) continue;                      ;;
-            esac;
-            echo $c_OFF >$ref; sleep 0.3;
-            if ! is_charging; then
-                echo $c_ON >$ref; sleep 0.3;
-                if is_charging; then
-                    eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
-                    if [[ $i -eq 3 ]]; then break 2; fi;
-                fi;
-            fi;
-            echo $c_ON >$ref;
-        done;
-        if [[ $i -gt 1 ]]; then break; fi;
+            done;
+            if [[ $i -gt 1 ]]; then break; fi;
+        fi;
     fi;
 done <$tmp_file;
-if [[ $i -eq 1 ]]; then
-    abort 'Could not succeed the compatibility check';
+if [[ $i -gt 1 ]]; then
+    printp OK; echo ' '; echo ' '; echo ' ';
 else
-    echo -e "- OK\n\n\n";
+    abort 'Failed the check';
 fi;
 
-# Get image ready and mounted for un-installation
+# Get the image ready and mounted
 if [[ -f $image ]]; then
-    echo -e "- $image exists\n";
+    printp "Found $image";
     e2fsck -pf $image >&2;
     img_total=$(imgsize_test 2);
     if [[ $(imgsize_test 1) -eq $img_total ]]; then
-        echo -e "- Expanding $image...\n";
+        printp "Resizing $image...";
         resize2fs $image $((img_total + 32))M;
     fi;
 else
-    echo -e "- Creating $image...\n";
-    make_ext4fs -l 64M $image >&2;
+    printp "Creating $image...";
+    if ! make_ext4fs -l 64M $image >&2; then
+        /system/bin/mke2fs -t ext4 $image 64M >&2;
+    fi;
 fi;
-echo -e "- Mounting $image...\n";
+printp "Mounting $image...";
 mkdir $mount_point;
-for minor in $(seq -s ' ' 7); do
+for minor in 1 2 3 4 5 6 7; do
     loop_device=/dev/block/loop$minor;
     if [[ ! -b $loop_device ]]; then mknod $loop_device b 7 $minor; fi;
     if losetup $loop_device $image; then
@@ -177,15 +174,13 @@ for minor in $(seq -s ' ' 7); do
     fi;
 done;
 if ! grep -q " $mount_point " /proc/mounts; then
-    abort "Could not mount $image";
+    abort "Failed to mount $image";
 fi;
 
-# Proceed to un-installation
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803121 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803161 ]]; then
 
     # Uninstall
-    echo -e "- Same or newer already installed\n";
-    echo -e "- Attention :- Uninstalling ( FATU )...\n";
+    printp 'Same or newer installed, uninstalling to FATU...';
     rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
     kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ');
     if inst_mcc=$(ls /system/xbin/mcc || ls /system/bin/mcc); then
@@ -195,18 +190,20 @@ else
 
     # Install
     rm -rf $mod_dir; mkdir -p $mod_dir/docs $mod_dir/cache;
-    echo -e "- Extracting module files...\n";
+    printp 'Extracting mcc files...';
     unzip -o "$zip_file" 'system/*' mcc.conf service.sh module.prop -d $mod_dir >&2;
     unzip -o "$zip_file" README.md -d $mod_dir/docs >&2;
     bin_dir=$mod_dir/system/xbin;
     if [[ ! -d /system/xbin ]]; then
         mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
     fi;
-    if [[ $(which_installed) -ge 201802251 ]] && old_conf=$(ls $inst_mod_dir/mcc.conf); then
-        echo -e "- Restoring configurations...\n";
-        for prop in auto_shut auto_switch daemon_mode up_threshold down_threshold shut_threshold; do
-            set_prop $prop $(get_prop $prop $old_conf);
-        done;
+    if [[ $(which_installed) -ge 201802251 ]]; then
+        if old_conf=$(ls $inst_mod_dir/mcc.conf); then
+            printp 'Restoring configurations...';
+            for prop in auto_shut auto_switch daemon_mode up_threshold down_threshold shut_threshold; do
+                set_prop $prop $(get_prop $prop $old_conf);
+            done;
+        fi;
     fi;
     set_prop uevent $uevent;
     for i in 1 2; do
@@ -220,7 +217,7 @@ else
     mkdir $inst_mod_dir;
     touch $inst_mod_dir/update;
     cp -f $mod_dir/module.prop $inst_mod_dir;
-    echo -e "- Setting permissions...\n";
+    printp 'Setting permissions...';
     set_perm_recursive $mod_dir    0 0644;
     set_perm_recursive $bin_dir 2000 0755;
 fi;
@@ -228,5 +225,5 @@ fi;
 # Finalize
 umount $mount_point; losetup -d $loop_device;
 rmdir $mount_point; rm -rf $tmp_dir;
-echo -e "- Done\n\n\n";
+printp Done; echo ' '; echo ' '; echo ' ';
 exit 0;

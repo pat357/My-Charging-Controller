@@ -1,1 +1,13 @@
-#MAGISK# You are a really bad power user, maybe you want the update-binary
+#MAGISK#
+
+# if (you_ever_had_heard_of_shell_edify_replacement()) {
+#     if (why_did_you_came_here())
+#         ok_see_the_update_binary();
+#     else
+#         you_dont_need_to_see_this();
+# } else {
+#     if(you_go_to_school())
+#         start_learning_coding();
+#     else
+#         never_mind_the_code_just_use_it();
+# }

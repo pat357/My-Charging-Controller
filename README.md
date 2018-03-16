@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201803111 )
+###### mcc README ( 201803161 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -8,15 +8,15 @@
 
 * This file is a part of the project "MC's Charging Controller ( mcc )"
 
-* I MCMotherEffin', hereby declare that "MC's Charging Controller"
-  is licensed under the GNU GPL v3 and you are allowed to modify or
-  re-distribute it under the terms of the GNU GPL v3 as published by
-  the Free Software Foundation or any later version provided that you
-  include the above copyright notice and this declaration
+* I MCMotherEffin', hereby declare that mcc is originally distributed from
+   me under the terms of the GNU GPL v3 and you are allowed to use, modify
+   or re-distribute the work done for mcc under v3 or any later version of
+   GNU GPL as published by the Free Software Foundation provided that this
+   declaration and the above copyright is included
 
-* Given the above rights, you are required to inform me
-  if you re-distribute it ( wherever you do, it is public )
-  --> You should do so by sending me a Private Message at xda-developers.com
+* mcc was entirely written to help people extend their device's battery by
+   controlling charging, without any kind of WARRANTY, and I will not take
+   responsibility for any damage, or just anything bad happened
 
 * Finally, you should obtain a copy of the GNU GPL v3 from [here](http://gnu.org/licenses/)
 
@@ -30,173 +30,128 @@
 ### Introduction
 
 * ##### Control when to enable / disable charging on your device
-* ##### Contains some of basic things for extending battery life
+* ##### Contains most of basic things for extending battery life
 
-### Description
-
-* The base inspiration for creating mcc is to extend batteries' life
-* mcc works in either of these ways, 1) daemon mode and 2) manual run
-* Mostly you might want to configure daemon mode to work automatically,
-  but you might also need manual run for some other ( Advanced ) purposes
-* With daemon mode ( background activity ), you get the following twos
-* 1) Auto switch ( automatic switching ) :-
-  It operates based on these twos, 1) up_threshold and 2) down_threshold
-  --> It will disable charging if battery level goes above the first and
-  re-enable charging once it hits the second threshold ( if plugged in ),
-  so, it will keep the battery level bounded within these two thresholds
-  while the device is plugged in
-* 2) Auto shut ( automatic power-off ) :-
-  It operates based on shut_threshold
-  --> It will power-off the device if battery level goes below the threshold
-* With manual run, you can enable / disable charging for
-  either some time ( seconds, minutes or hours ) or until certain percents
-* You can also reset battery statistics with it ( see 'Keep in mind' )
-* Some other options are listed in 'Arguments can be' section
-
-### How to use
+### Usage
 
 * You should use a terminal for the purpose,
-  most custom ROMs come with one built-in, using which I will recommend
-* You don't need to run 'su' first, but it be better if you do so
-* You also don't need to worry while running mcc ( mcc is intelligent ),
-  as it has error-checking for every user input taken
-* Finally, from Terminal, run "mcc [ ARG_1 ] [ ARG_2 ] [ ARG_3 ]..."
+   see 'Development settings' if using a custom ROM
+* mcc will check every input for errors, no worries
+* A root shell is not needed, but better if have so
+* From Terminal, run 'mcc [ ARG_1 ] [ ARG_2 ] ....'
 
-##### Arguments can be
+### Options
 
-    [ -s / --switch ] [ DISABLE % ] [ ENABLE % ]
-        :- Set thresholds ( % ) used by auto awitch
-        :-- [ ENABLE % ] is optional
-        :-- Defaults :- 80 70
+    [ -s / --switch ] [ -p / --shut ] [ -f / --force ] [ -e / --enable ]
+    [ -d / --disable ] [ -ts / --auto-switch ] [ -tp / --auto-shut ]
+    [ -dm / --daemon-mode ] [ -rd / --re-daemon ] [ -df / --default ]
+    [ -i / --info ] [ -r / --rm-stats ] [ -rc / --reconf ] [ -h / --help ]
 
-    [ -p / --shut ] [ SHUT % ]
-        :- Set threshold ( % ) used by auto shut
-        :-- Default  :- 20
+### Examples
 
-    [ -f / --force ] [ ARGS ACCORDINGLY ]...
-        :- Same as [ -s ] [ DISABLE % ] [ ENABLE % ]
-        :--     or [ -p ] [ SHUT % ]
-        :-- Except for all values are taken valid
+* 'mcc -s 85 65' -->  Set auto switch thresholds to 85 65
+* 'mcc -s 55'    -->  Set auto switch threshold to 55
+* 'mcc -f -s 95' -->  Force set auto switch threshold 95
+* 'mcc -p 15'    -->  Set auto shut threshold to 15
+* 'mcc -f -p 3'  -->  Force set auto shut threshold to 3
+* 'mcc -df'      -->  Reset all the threshold to defaults
+* 'mcc -ts'      -->  Toggle auto switch ON / OFF
+* 'mcc -tp'      -->  Toggle auto shut ON / OFF
+* 'mcc -dm'      -->  Toggle daemon mode ON / OFF
+* 'mcc -rd'      -->  Re-launch the daemon unless running
+* 'mcc -e 30s'   -->  Enable charging for 30 seconds
+* 'mcc -d 45m'   -->  Disable charging for 45 minutes
+* 'mcc -e 2h'    -->  Enable charging for 2 hours
+* 'mcc -d 30%'   -->  Disable charging until 30 percents
+* 'mcc -e 95%'   -->  Enable charging until 95 percents
+* 'mcc -i'       -->  Show info about current status
+* 'mcc -r'       -->  Reset battery statistics
+* 'mcc -rc'      -->  Re-configure sysfs references
+* 'mcc -h'       -->  Show this help message
 
-    [ -e / --enable ] [ % / TIME ]
-        :- Enable charging for given time / until certain %
-        :-- [ % / TIME ] is optional
-        :-- Time can be as 40s, 10m, or 1h
-        :-- and level must be as 65%
+### Miscellanous
 
-    [ -d / --disable ] [ % / TIME ]
-        :- Same as above, except for charging is disabled
+* Auto switch and auto shut are part of the daemon mode, so with
+   no daemon, there is no auto s*
+* The [ -s / --switch ] option will automatically figure out the
+   lower threshold unless given
+* [ -rc / --reconf ] must be ran when you have flashed different
+   kernel
+* You can use long options instead of the shorter ones for conv.
 
-    [ -ts / --auto-switch ]
-        :- Toggle auto switch ON / OFF
-        :-- Default  :- ON
+### Remember
 
-    [ -tp / --auto-shut ]
-        :- Toggle auto shut ON / OFF
-        :-- Default  :- ON
-
-    [ -dm / --daemon-mode ]
-        :- Toggle daemon mode ON / OFF
-        :-- Default  :- ON
-
-    [ -rd / --re-daemon ]
-        :- Launch the daemon unless running
-
-    [ -df / --default ]
-        :- Reset all thresholds to defaults
-
-    [ -i / --info ]
-        :- Show info about current status
-
-    [ -r / --rm-stats ]
-        :- Reset battery statistics
-
-    [ -rc / --reconf ]
-        :- Re-configure sysfs references
-
-    [ -h / --help ]
-        :- Show this help message
-
-### Keep in mind
-
-* mcc requires Magisk >= 1410 and does not support recovery installation
-* Device must be charging while installing /  running [ -rc / --reconf ]
-* mcc will create upto four ( and min. two ) processes for some stuff
-  --> Except for the daemon, which ( if launched by Magisk on boot or
-      by running [ -rd / --re-daemon ] ) needs only one process
-* 0 and 100 are not valid thresholds, so they wiil always give an error
-* [ -r / --rm-stats ] might not work on some Nougat ROMs / retired devices
-* If you upgrade from a version older than 1.2.1
-  --> configurations from older one will not be restored ( incompat... )
-* For developers
-  --> I built it specifically for Android, so I used mksh as the Shell??
-      so please do not do that bash shit with this module ( Blah!!!... )
-      and also please always try to retain the original coding style
-  --> I'm always here at XDA for any help / discussion you might want
-  --> Finally, if you add anything to mcc, please ( you should ) tell me,
-      so that I can think of merging your changes to the original source
+* mcc requires Magisk >= 1410 and boot mode installation
+* Device must be charging while installing and 'mcc -rc'
+* Resetting battery stats might not work on some devices
 
 ### Support / Bugs / Feature request
 
-* Finally, as you have read all of the above and still need some help
-  or you have some topic to be discussed about and you believe others
-  might also be wondering the same, please use the official XDA thread
-* If you think you have found a bug in mcc
-  ( please always use common sense first, also see if you can fix it ),
-  please report that at the thread, and also please include the following
-* 1) Nature of the bug ( how does it act / react, etc,... )
-* 2) How to reproduce that bug or if is that device specific
-* 3) What did you do to troubleshoot it
-* 4) Which device, ROM, kernel you're using
-* 5) and attach /cache/mcc_e*.log and /sbin/.core/img/mcc/cache/verbose*.log,
-* If you have mcc working with the above mentioned functionalities,
-  and wish to have a new feature added, please ask that at the thread,
-  but be sure to explain in detail how that feature is intended to function
+* All the support, bug reports, and feature requests
+   should take place in my official XDA thread
+* Explain clearly what support you are seeking
+* Explain clearly how the bug affects the prog
+* Explain clearly how the feature will perform
 
-### Thanks to
+### Thanks
 
-* @VR25 for 'Magic Charging Switch',
-  which inspired me to develop mcc ( mcc's built from scratch )
-* @topjohnwu for creating such a platform
-* @CCL108XIV for being the mcc development MVP
-* Many other resources of my shell script code ( i.e., stackoverflow )
-* Me for developing, organizing, and perfecting mcc
+* @topjohnwu for making such a platform
+* Other resources of the scripting code
+* Do not know why is the last one me ??
 
-### Donate to Me
+### Donate
 
 * All of the work that I have done comes out of my free time,
-  I'm a 17 year old student and I do it all as a hobby ( maybe habit ),
-  so if you like my work, and want to encourage further development
-  --> Please feel free to donate to me ( just a tea, run "mcc --donate" )
+  I am just a 17 year old student, who does it all as a hobby
+  so if you like my works, and want to encourage further work
+* Feel free to donate to me ( a lil tea, run 'mcc --donate' )
 
-### Release notes
+### Release Notes
 
-##### 1.3
+##### 1.4
 
 * Hi users,
-* Firstly, I'm sorry for the sucking 'No references set' bug,
-  I forgot to split out the switch file which resulted in as an
-  unrecognized switch by mcc, So, whenever mcc was ran, it did not
-  detect switches and so the bug happened, this bug has been  fixed now
-* And now, so mcc provides manual run option, and which takes time as an
-  argument, for which, mcc will fork a session which will keep sleeping
-  for the given time, and mcc will check for that process every second,
-  but it gave false positives when another shell process was also sleeping
-  for the same time as mcc ( child ) did, that bug has also been fixed
-* I also recently intoduced a new feature said 'Revert Magic Mount'
-  live from booted Android, but I realized that with A / B devices,
-  it is completely different, which made it unusable for such devices,
-  but now, the feature is working completely on A / B devices now, for which
-  mcc requires Magisk >= 1410 from now ( would not matter for most users )
-* I have also put in a hell lot of efforts in making mcc rock stable,
-  I started from the top of every single component and kept analyzing, and
-  analyzing, and analyzing, and analyzing, and analyzing, and analyzing,
-  and Finally, I'm glad to declare most unless all bugs are flushed out
-* I also have effingly strived harder to workaround many non-mcc flaws which I found
+* As always it calls for an apology that you all had to manually
+  set references even after succeeding the compatibility check from the
+  mcc Installer, it was a misspelled variable in the Installer, which
+  has now been fixed, for which I want to thank @pat357 for his pull
+  request
+* Another critical bug was false positive compatibility successions, this
+  bug appears when the device did not even have a recognized battery
+  device / module, and so much funnier, the reason was just a single
+  misplaced variable, that was used to detect if the check succeeded,
+  this bug has also been fixed
+* @RSDamasceno at XDA reported having soft reboots and device warm-ups
+  with mcc, which I suspect a bug with kernel not handling switch writes
+  correctly, but as mcc is entirely written in Shell, I have added some
+  code that will detect the current switch status and write to it only if
+  the status is different, so the issue is supposed to be fixed
+* It fixes another issue when the user has given an invalid argument for
+  manually enabling charging, issue appeared something like, mcc will
+  first disable charging, then abort due to unrecognized argument, so
+  charging will be disabled as opposed to be enabled, which has also
+  been fixed
+* With any older mcc build, the first execution of command always took
+  some seconds, some people reported 2, some 5 and some even 8 seconds,
+  which happened due to mcc's Magisk mount point finding and BusyBox
+  setup, which I implemented just to make sure mcc can work with all the
+  present and possibly any future Magisk version, but the logic has now
+  been shifted to service, which on boot, will do it all once for the
+  entire boot session
+* The boot daemon launcher will now attempt 5 times to launch the daemon,
+  which whether succeeded / failed will be logged in Magisk logs, so
+  that users can check if the daemon was launched at boot time
+* And now as Android P DP1 is out, which removes make_ext4fs, I have put
+  a fallback for that to mke2fs, just as same with Magisk
+* Also all the strings in the Installer and the Main have been re-written
+  and some faulty code has been cleaned up and organized as always
 * So, the complete changelog is
-  --> Fix the 'No references set' bug
-  --> Fix false positives for time-based run
-  --> Fix 'Revert Magic Mount' for A / B devices
-  --> Re-analyze and re-write the entire project
-  --> Workaround many non-mcc flaws
-  --> Require Magisk >= 1410
+  --> Fix the Installer not setting references by @pat357
+  --> Fix false positives with compatibility check
+  --> Fix a bug with with kernels not handling switch changes correctly
+  --> Fix a bug with manually enabling charging
+  --> Fix image creation for Android P DP1
+  --> Fast as hell first time execution
+  --> A better boot daemon launcher
+  --> Re-write all the strings
+  --> Cleanup some code
