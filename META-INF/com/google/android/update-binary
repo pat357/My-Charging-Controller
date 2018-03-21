@@ -1,23 +1,34 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803161 )
+# mcc Installer ( 201803211 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
 
-# This file is a part of the project "MC's Charging Controller ( mcc )"
+# This file is a part of the project "MC's Charging Controller ( mcc )".
 
 # I MCMotherEffin', hereby declare that mcc is originally distributed from
 ## me under the terms of the GNU GPL v3 and you are allowed to use, modify
 ## or re-distribute the work done for mcc under v3 or any later version of
 ## GNU GPL as published by the Free Software Foundation provided that this
-## declaration and the above copyright is included
+## declaration and the above copyright notice is included.
 
 # mcc was entirely written to help people extend their device's battery by
-## controlling charging, without any kind of WARRANTY, and I will not take
-## responsibility for any damage, or just anything bad happened
+## controlling charging, without any kind of WARRANTY, and I can't be held
+## responsible for any damage, or just anything bad happened.
 
-# Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>
+# Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
+
+# Some info about this file
+
+# This file is the installer script which will be ran by Magisk Manager or
+## the recovery flashing the module. It firstly will do some detections to
+## figure out the environment, then dynamically detect Magisk mount point,
+## and set BusyBox up. It will then check if the device is compatible with
+## the module, and as recoveries ( mostly ) contain different kernel, them
+## flashing mcc is unwanted. If the check succeeded, it will edit mcc.conf
+## with the detected references. And finally, it will install or uninstall
+## the module based on the installtion status.
 
 # Pre-exec operations
 if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
@@ -27,7 +38,7 @@ if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
     exit 1;
 elif [ $(magisk -V) -lt 1410 ]; then
     echo ' '; echo ' ';
-    echo -e "- mcc must be installed alongside Magisk >= 1410, aborting...\n"; exit 1;
+    echo -e "- mcc must be installed with Magisk >= 1410, aborting...\n"; exit 1;
 else
     set -x; echo ' '; echo ' ';
 fi;
@@ -112,29 +123,32 @@ while read uevent; do
         if is_charging; then
             for ref in ${uevent%/*}/*; do
                 if [[ -f $ref ]]; then
-                    chmod u+rw $ref;
-                    case $(cat $ref) in
-                        1       ) c_ON=1;        c_OFF=0;        ;;
-                        0       ) c_ON=0;        c_OFF=1;        ;;
-                        on      ) c_ON=on;       c_OFF=off;      ;;
-                        off     ) c_ON=off;      c_OFF=on;       ;;
-                        true    ) c_ON=true;     c_OFF=false;    ;;
-                        false   ) c_ON=false;    c_OFF=true;     ;;
-                        enable  ) c_ON=enable;   c_OFF=disable;  ;;
-                        disable ) c_ON=disable;  c_OFF=enable;   ;;
-                        enabled ) c_ON=enabled;  c_OFF=disabled; ;;
-                        disabled) c_ON=disabled; c_OFF=enabled;  ;;
-                        *       ) continue;                      ;;
-                    esac;
-                    echo $c_OFF >$ref; sleep 0.3;
-                    if ! is_charging; then
-                        echo $c_ON >$ref; sleep 0.3;
-                        if is_charging; then
-                            eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
-                            if [[ $i -eq 3 ]]; then break 2; fi;
+                    if ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
+                        case $(cat $ref) in
+                            1       ) c_ON=1;        c_OFF=0;        ;;
+                            0       ) c_ON=0;        c_OFF=1;        ;;
+                            on      ) c_ON=on;       c_OFF=off;      ;;
+                            off     ) c_ON=off;      c_OFF=on;       ;;
+                            true    ) c_ON=true;     c_OFF=false;    ;;
+                            false   ) c_ON=false;    c_OFF=true;     ;;
+                            enable  ) c_ON=enable;   c_OFF=disable;  ;;
+                            disable ) c_ON=disable;  c_OFF=enable;   ;;
+                            enabled ) c_ON=enabled;  c_OFF=disabled; ;;
+                            disabled) c_ON=disabled; c_OFF=enabled;  ;;
+                            *       ) continue;                      ;;
+                        esac;
+                        echo $c_OFF >$ref; sleep 1;
+                        if ! is_charging; then
+                            echo $c_ON >$ref; sleep 1;
+                            if is_charging; then
+                                eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
+                                if [[ $i -eq 3 ]]; then break 2; fi;
+                            fi;
                         fi;
+                        echo $c_ON >$ref;
+                    else
+                        continue;
                     fi;
-                    echo $c_ON >$ref;
                 fi;
             done;
             if [[ $i -gt 1 ]]; then break; fi;
@@ -177,7 +191,7 @@ if ! grep -q " $mount_point " /proc/mounts; then
     abort "Failed to mount $image";
 fi;
 
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803161 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803211 ]]; then
 
     # Uninstall
     printp 'Same or newer installed, uninstalling to FATU...';

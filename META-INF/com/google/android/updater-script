@@ -1,13 +1,15 @@
 #MAGISK#
 
 # if (you_ever_had_heard_of_shell_edify_replacement()) {
-#     if (why_did_you_came_here())
+#     if (why_did_you_came_here()) {
 #         ok_see_the_update_binary();
-#     else
+#     } else {
 #         you_dont_need_to_see_this();
+#     }
 # } else {
-#     if(you_go_to_school())
+#     if (you_go_to_school()) {
 #         start_learning_coding();
-#     else
+#     } else {
 #         never_mind_the_code_just_use_it();
+#     }
 # }
