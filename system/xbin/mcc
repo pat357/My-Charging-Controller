@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201803211 )
+# mcc Main ( 201803212 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -351,7 +351,7 @@ charge() {
 
 # Switch logger to mod_dir
 if [[ ! $no_file_logs ]]; then
-    echo 'mcc versionCode = 201803211' >$ver_log;
+    echo 'mcc versionCode = 201803212' >$ver_log;
     echo -e "magisk versionCode = $(magisk -V)\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
@@ -434,7 +434,7 @@ case $1 in
             ## auto shut
             if $(auto_shut); then
                 if [[ $(batt_level) -le $(shut_threshold) ]]; then
-                    if ! is_charging; then reset_stats rm; poweroff; fi;
+                    if ! is_charging; then setprop sys.powerctl shutdown; fi;
                 fi;
             fi;
 

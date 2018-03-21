@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803211 )
+# mcc Installer ( 201803212 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -191,7 +191,7 @@ if ! grep -q " $mount_point " /proc/mounts; then
     abort "Failed to mount $image";
 fi;
 
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803211 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803212 ]]; then
 
     # Uninstall
     printp 'Same or newer installed, uninstalling to FATU...';
