@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201803212 )
+# mcc Main ( 201803221 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -68,7 +68,7 @@ fi;
 
 abort() { printp "$1, aborting..." >&2; printp "$1, aborting..."; exit 1; }
 
-exit_help() { head -n 109 $mod_dir/docs/README.md; exit 1; }
+exit_help() { head -n 110 $mod_dir/docs/README.md; exit 1; }
 
 printp() { echo -e "- $1\n"; }
 
@@ -195,12 +195,8 @@ switch_() {
         switch=$(get_prop switch_$i | awk '{ print $1 }');
         if [[ $switch != dummy_Switch ]]; then
             case $1 in
-                ON )
-                    write_switch 2;
-                ;;
-                OFF)
-                    write_switch 3;
-                ;;
+                ON ) write_switch 2; ;;
+                OFF) write_switch 3; ;;
             esac;
         else
             break;
@@ -234,7 +230,7 @@ shut_threshold() { get_prop shut_threshold; }
 
 batt_level() { get_prop POWER_SUPPLY_CAPACITY $(uevent_f); }
 
-# Function for resetting sysfs references
+# Function for resetting sysfs references ( CORE part of the entire module )
 
 set_ctrl_refs() {
     for i in 1 2; do set_prop switch_$i dummy_Switch; done;
@@ -250,14 +246,14 @@ set_ctrl_refs() {
         if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $uevent && grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent; then
             set_prop uevent $uevent;
 
-            ## cycle though all control files of the device / module...
+            ## cycle through all control files of the device / module...
             for ref in ${uevent%/*}/*; do
                 if [[ -f $ref ]]; then
 
                     ## ...skip those not writable, [[ -w $ref ]] can't be used
                     if ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
 
-                        ##  ...skip those not possible boolean control file
+                        ##  ...skip those not possible boolean control files
                         case $(cat $ref) in
                             1       ) c_ON=1;        c_OFF=0;        ;;
                             0       ) c_ON=0;        c_OFF=1;        ;;
@@ -351,7 +347,7 @@ charge() {
 
 # Switch logger to mod_dir
 if [[ ! $no_file_logs ]]; then
-    echo 'mcc versionCode = 201803212' >$ver_log;
+    echo 'mcc versionCode = 201803221' >$ver_log;
     echo -e "magisk versionCode = $(magisk -V)\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
@@ -440,7 +436,7 @@ case $1 in
 
             ## auto switch
             if $(auto_switch); then
-                if [[ $(batt_level) -le $(up_threshold) ]]; then
+                if [[ $(batt_level) -le $(down_threshold) ]]; then
                     if is_charging; then
                         if [[ $no_ckcurrent || $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0 ]]; then
                             no_ckcurrent=true;
@@ -449,7 +445,7 @@ case $1 in
                         fi;
                     fi;
                     if ! is_charging; then switch_ ON; fi;
-                elif [[ $(batt_level) -ge $(down_threshold) ]]; then
+                elif [[ $(batt_level) -ge $(up_threshold) ]]; then
                     if is_charging; then switch_ OFF; unset no_ckcurrent; fi;
                 fi;
             fi;

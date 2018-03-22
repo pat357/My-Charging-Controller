@@ -1,5 +1,7 @@
 #MAGISK#
 
+# Read the following code for a quick understanding.
+
 # if (you_ever_had_heard_of_shell_edify_replacement()) {
 #     if (why_did_you_came_here()) {
 #         ok_see_the_update_binary();

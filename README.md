@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201803212 )
+###### mcc README ( 201803221 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -111,13 +111,10 @@
 
 ### Release Notes
 
-##### 1.4.1
+##### 1.4.2
 
 * Hi users,
-* This is a small bug fix release, which is aimed to fix some
-  little, but very serious bugs, so changelog reads as
-* --> Fix mod_dir not being set by the service
-  --> Fix unwanted reboots while installing
-  --> Fix installations for Pixel 2 XL
-  --> Fix switch not being written
-* And the last twos are thankfull contributions from @chuckr2
+* This is another lil bug fix release, which is to fix a very
+  serious bug, which makes auto switch non-functional, thanks
+  to @pat357 for pointing the buggy thing out and providing a
+  quick fix

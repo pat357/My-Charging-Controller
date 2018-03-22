@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201803212 )
+# mcc Service ( 201803221 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -66,9 +66,7 @@ fi;
 # Launch the daemon
 chmod 0755 $mcc_main;
 for i in first second third fourth fifth; do
-    if ! is_runningd; then
-        (no_file_logs=true mcc --launch-daemon &);
-    fi;
+    if ! is_runningd; then (no_file_logs=true mcc --launch-daemon &); fi;
     sleep 15;
 done;
 if is_running_d; then
