@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201803221 )
+# mcc Service ( 201803231 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -32,7 +32,7 @@ mod_dir=${0%/*};
 mcc_bin=$mod_dir/busybox;
 busybox=$mcc_bin/busybox;
 srv_log=$mod_dir/cache/service.log;
-mcc_main=$(ls $mod_dir/system/xbin/mcc || ls $mod_dir/system/bin/mcc);
+if ! mcc_main=$(ls /system/xbin/mcc || ls /system/bin/mcc); then exit 1; fi;
 
 # Define functions
 
@@ -63,8 +63,12 @@ else
     log_srv e 'Failed to set BusyBox up';
 fi;
 
-# Launch the daemon
+# Unblock Main and the daemon
 chmod 0755 $mcc_main;
+rm -f $mod_dir/cache/lock_d;
+
+# Launch the daemon
+sleep 120;
 for i in first second third fourth fifth; do
     if ! is_runningd; then (no_file_logs=true mcc --launch-daemon &); fi;
     sleep 15;

@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201803221 )
+# mcc Main ( 201803231 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -53,6 +53,7 @@ fi;
 # Define variables
 config=$mod_dir/mcc.conf;
 cache_dir=$mod_dir/cache;
+lock_file=$cache_dir/lock_d;
 ver_log=$cache_dir/verbose.log;
 uevent_cache=$cache_dir/uevent_cache.tmp;
 
@@ -175,13 +176,15 @@ reset_stats() {
     printp Done;
 }
 
-charge_acts() {
-    if $(auto_switch); then set_prop auto_switch false; overridden=true; fi;
+charge_init() {
+    touch $lock_file;
     if [[ $turn_1 == ON ]]; then
         if is_charging; then switch_ OFF; fi;
     fi;
     test_switch;
 }
+
+charge_free() { rm -f $lock_file; switch_ $turn_2; }
 
 write_switch() {
     value=$(get_prop switch_$i | awk "{ print \$$1 }");
@@ -250,10 +253,10 @@ set_ctrl_refs() {
             for ref in ${uevent%/*}/*; do
                 if [[ -f $ref ]]; then
 
-                    ## ...skip those not writable, [[ -w $ref ]] can't be used
+                    ## ...skipping those not writable, [[ -w $ref ]] won't work
                     if ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
 
-                        ##  ...skip those not possible boolean control files
+                        ##  ...skipping those not possible boolean control files
                         case $(cat $ref) in
                             1       ) c_ON=1;        c_OFF=0;        ;;
                             0       ) c_ON=0;        c_OFF=1;        ;;
@@ -314,16 +317,15 @@ charge() {
         if echo $2 | grep -Eq '^[0-9]+%$'; then
             level=$(echo $2 | tr -d %);
             test_bound $level;
-            charge_acts;
+            charge_init;
             printp "Charging will be $text until $2...";
             while [[ ! $(batt_level) -eq $level ]]; do
                 test_switch;
                 sleep 1;
             done;
-            switch_ $turn_2;
-            printp Done;
+            charge_free;
         elif echo $2 | grep -Eq '^[0-9]+[smh]$'; then
-            charge_acts;
+            charge_init;
             printp "Charging will be $text for $2...";
             setsid sleep $2;
             sleep_pid=$(get_cpid "sleep $2");
@@ -331,23 +333,20 @@ charge() {
                 test_switch;
                 sleep 1;
             done;
-            switch_ $turn_2;
-            print Done;
+            charge_free;
         else
             abort 'The argument must be in mcc recognized format';
         fi;
     else
-        charge_acts;
+        charge_init;
         printp "Charging has been $text";
-    fi;
-    if [[ $overridden ]]; then
-        set_prop auto_switch true; test_daemon >/dev/null;
+        charge_free;
     fi;
 }
 
 # Switch logger to mod_dir
 if [[ ! $no_file_logs ]]; then
-    echo 'mcc versionCode = 201803221' >$ver_log;
+    echo 'mcc versionCode = 201803231' >$ver_log;
     echo -e "magisk versionCode = $(magisk -V)\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
@@ -425,7 +424,7 @@ case $1 in
     ;;
     --launch-daemon)
         while $(auto_shut) || $(auto_switch) && $(daemon_mode); do
-            while ! are_refs_set; do sleep 2; done;
+            while ! are_refs_set || test -f $lock_file; do sleep 1; done;
 
             ## auto shut
             if $(auto_shut); then

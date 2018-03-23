@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803221 )
+# mcc Installer ( 201803231 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -78,6 +78,7 @@ tmp_file=$tmp_dir/cached;
 mount_point=/dev/mcc_img;
 mod_dir=$mount_point/mcc;
 inst_mod_dir=$real_mount_point/mcc;
+lock_file=$inst_mod_dir/cache/lock_d;
 image=${image%/*}/magisk_merge.img;
 
 # Define functions ( they are quite hardcoded )
@@ -117,6 +118,7 @@ echo ' '; echo ' '; echo ' ';
 printp 'Checking compatibility ( requires the battery be charging )...';
 sleep 3;
 find /sys/devices /sys/module -type f -name uevent >$tmp_file;
+touch $lock_file;
 i=1;
 while read uevent; do
     if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $uevent; then
@@ -155,6 +157,7 @@ while read uevent; do
         fi;
     fi;
 done <$tmp_file;
+rm -f $lock_file;
 if [[ $i -gt 1 ]]; then
     printp OK; echo ' '; echo ' '; echo ' ';
 else
@@ -191,7 +194,7 @@ if ! grep -q " $mount_point " /proc/mounts; then
     abort "Failed to mount $image";
 fi;
 
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803221 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803231 ]]; then
 
     # Uninstall
     printp 'Same or newer installed, uninstalling to FATU...';

@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201803221 )
+###### mcc README ( 201803231 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -110,6 +110,26 @@
 * Feel free to donate to me ( a lil tea, run 'mcc --donate' )
 
 ### Release Notes
+
+##### 1.4.3
+
+* Hi users,
+* A small + sensitive release is here, which is aimed on some
+  minor code errors, and a better way of eliminating failures
+  due to interference with the daemon.
+* All the bugs fixed are reported by users at XDA, and I will
+  not detail them here, but "Please toggle auto switch OFF if
+  compatibility check fails upgrading".
+* What I am gonna detail is a new feature of the daemon. From
+  this version on, mcc daemon can be paused with a lock file.
+  Users, or anyone else, can create the file CACHE_DIR/lock_d
+  and the daemon will go sleep until it exists. This is to be
+  used by Installer, but not limited. So changelog reads...
+* ...Fix 'Permission denied' while running mcc
+* ...Fix daemon not launching for some devices
+* ...Fix bad compatibility check failures
+* ...Bring back initial 120 seconds delay
+* ...Add a lock file to pause the daemon
 
 ##### 1.4.2
 

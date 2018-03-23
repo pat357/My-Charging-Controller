@@ -1,7 +1,7 @@
 # All files must have LF line-endings ( "\n" ).
 ## This file can alternatively be used as a list of mcc project files.
 ## This list must be sorted alphabetically due to convenience reasons.
-## The above line is just for me!!! You can add / remove / sort files.
+## The above line is just for me!!! You can add / remove or sort them.
 
 mcc.conf                                     text   eol=lf
 META-INF/com/google/android/updater-script   text   eol=lf
