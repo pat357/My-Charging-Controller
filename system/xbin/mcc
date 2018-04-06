@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201803231 )
+# mcc Main ( 201804061 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -19,7 +19,7 @@
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
 
-# Some info about this file
+# Some info about this file.
 
 # This file is the Main script which handles all user operations and does
 ## contain all the core code of mcc. It firstly will do some stuff for su
@@ -31,7 +31,6 @@
 ## will become a documentary project rather than a coding project!!! Last
 ## thing is that if [ -e / -d ] [ TIME ] is ran, then max procs are four.
 
-# Pre-exec operations
 if ! id | grep '^uid=0' >/dev/null; then
     su -c mcc "$@"; exit $?;
 elif [ ! $no_file_logs ]; then
@@ -41,31 +40,21 @@ elif [ ! $no_file_logs ]; then
         set -x 2>/cache/mcc_env.log; echo ' ';
     fi;
 fi;
-
-# Get the mod_dir
-if ! mod_dir=$(ls -1 /sbin/.core/img/ | grep '/mcc$' || ls -1 /magisk/ | grep '/mcc$'); then
-    mod_dir=This will be edited by the service
-    if [ ! -d $mod_dir ]; then
+mod_dir=/it_is_nothing;
+if [ ! -d "$mod_dir" ]; then
+    if ! mod_dir=$(find /sbin/.core/img /magisk -type d -maxdepth 1 -name mcc); then
         echo -e "- Failed to detect Magisk mount point, aborting...\n"; exit 1;
     fi;
 fi;
-
-# Define variables
 config=$mod_dir/mcc.conf;
 cache_dir=$mod_dir/cache;
 lock_file=$cache_dir/lock_d;
 ver_log=$cache_dir/verbose.log;
 uevent_cache=$cache_dir/uevent_cache.tmp;
-
-# Prioritize BusyBox in PATH
 export PATH=$mod_dir/busybox:$PATH;
-
-# Test for absence of BusyBox
-if ! busybox >/dev/null || test ! -x $(which awk || echo /it_is_nothing); then
+if (! busybox || ! which awk) >/dev/null; then
     echo -e "- Failed to detect BusyBox, aborting...\n"; exit 1;
 fi;
-
-# Define functions ( they are quite hardcoded )
 
 abort() { printp "$1, aborting..." >&2; printp "$1, aborting..."; exit 1; }
 
@@ -186,6 +175,8 @@ charge_init() {
 
 charge_free() { rm -f $lock_file; switch_ $turn_2; }
 
+charge_loop() { while eval $1; do test_switch; sleep 1; done; charge_free; }
+
 write_switch() {
     value=$(get_prop switch_$i | awk "{ print \$$1 }");
     if [[ $(cat $switch) != $value ]]; then
@@ -215,8 +206,6 @@ toggle() {
     printp Done;
 }
 
-# Always real time properties
-
 uevent_f() { get_prop uevent; }
 
 auto_shut() { get_prop auto_shut; }
@@ -233,30 +222,18 @@ shut_threshold() { get_prop shut_threshold; }
 
 batt_level() { get_prop POWER_SUPPLY_CAPACITY $(uevent_f); }
 
-# Function for resetting sysfs references ( CORE part of the entire module )
-
 set_ctrl_refs() {
     for i in 1 2; do set_prop switch_$i dummy_Switch; done;
     printp 'Re-configuring sysfs references ( requires the battery be charging )...';
     sleep 3;
-
-    ## get all available uevent files
     find /sys/devices /sys/module -type f -name uevent >$uevent_cache;
     i=1;
     while read uevent; do
-
-        ## get a possible battery device / module uevent file
         if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $uevent && grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent; then
             set_prop uevent $uevent;
-
-            ## cycle through all control files of the device / module...
             for ref in ${uevent%/*}/*; do
                 if [[ -f $ref ]]; then
-
-                    ## ...skipping those not writable, [[ -w $ref ]] won't work
                     if ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
-
-                        ##  ...skipping those not possible boolean control files
                         case $(cat $ref) in
                             1       ) c_ON=1;        c_OFF=0;        ;;
                             0       ) c_ON=0;        c_OFF=1;        ;;
@@ -270,14 +247,10 @@ set_ctrl_refs() {
                             disabled) c_ON=disabled; c_OFF=enabled;  ;;
                             *       ) continue;                      ;;
                         esac;
-
-                        ## we have a boolean control file, test it
                         echo $c_OFF >$ref; sleep 1;
                         if ! is_charging; then
                             echo $c_ON >$ref; sleep 1;
                             if is_charging; then
-
-                                ## we found a switch, add it to mcc.conf
                                 set_prop switch_$i "$ref $c_ON $c_OFF"; ((i += 1));
                                 if [[ $i -eq 3 ]]; then break 2; fi;
                             fi;
@@ -292,8 +265,6 @@ set_ctrl_refs() {
         fi;
     done <$uevent_cache;
     if [[ $i -eq 1 ]]; then
-
-        ## switch is not found
         set_prop uevent dummy_Events;
         if $(daemon_mode); then set_prop daemon_mode false; fi;
         abort 'Failed to re-configure them';
@@ -302,16 +273,10 @@ set_ctrl_refs() {
     fi;
 }
 
-# Function for [ -e / -d ] [ % / TIME ]
-
 charge() {
     case $1 in
-        enable )
-            turn_1=ON; turn_2=OFF; text=enabled; test='! is_charging';
-        ;;
-        disable)
-            turn_1=OFF; turn_2=ON; text=disabled; test='is_charging';
-        ;;
+        enable ) turn_1=ON;  turn_2=OFF; text=enabled;  test='! is_charging'; ;;
+        disable) turn_1=OFF; turn_2=ON;  text=disabled; test='is_charging';   ;;
     esac;
     if [[ ! -z $2 ]]; then
         if echo $2 | grep -Eq '^[0-9]+%$'; then
@@ -319,21 +284,13 @@ charge() {
             test_bound $level;
             charge_init;
             printp "Charging will be $text until $2...";
-            while [[ ! $(batt_level) -eq $level ]]; do
-                test_switch;
-                sleep 1;
-            done;
-            charge_free;
+            charge_loop '[[ ! $(batt_level) -eq $level ]]';
         elif echo $2 | grep -Eq '^[0-9]+[smh]$'; then
             charge_init;
             printp "Charging will be $text for $2...";
             setsid sleep $2;
             sleep_pid=$(get_cpid "sleep $2");
-            while ps | grep -q "^$sleep_pid "; do
-                test_switch;
-                sleep 1;
-            done;
-            charge_free;
+            charge_loop 'ps | grep -q "^$sleep_pid "';
         else
             abort 'The argument must be in mcc recognized format';
         fi;
@@ -344,9 +301,8 @@ charge() {
     fi;
 }
 
-# Switch logger to mod_dir
 if [[ ! $no_file_logs ]]; then
-    echo 'mcc versionCode = 201803231' >$ver_log;
+    echo 'mcc versionCode = 201804061' >$ver_log;
     echo -e "magisk versionCode = $(magisk -V)\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
@@ -355,8 +311,6 @@ if [[ ! $no_file_logs ]]; then
     echo ' ' >>$ver_log;
     set +x; set -x 2>>$ver_log;
 fi;
-
-# Handle given arguments
 case $1 in -f|--force) force=true; shift; ;; esac;
 case $1 in
     -i|--info)
@@ -379,12 +333,9 @@ case $1 in
         if is_runningd; then status=Running; else status='Not running'; fi;
         echo -e "-- daemon ( bg activity ) status :- $status\n";
     ;;
-    -h|--help) exit_help;
-    ;;
-    -rc|--reconf) set_ctrl_refs;
-    ;;
-    -r|--rm-stats) reset_stats rm;
-    ;;
+    -h|--help) exit_help; ;;
+    -rc|--reconf) set_ctrl_refs; ;;
+    -r|--rm-stats) reset_stats rm; ;;
     --donate)
         printp 'Heyyo!!! Thanks'; sleep 2;
         am start https://paypal.me/JayminSuthar >/dev/null;
@@ -407,10 +358,8 @@ case $1 in
         fi;
         toggle daemon_mode 'daemon mode';
     ;;
-    -e|--enable) test_refs; charge enable $2;
-    ;;
-    -d|--disable) test_refs; charge disable $2;
-    ;;
+    -e|--enable) test_refs; charge enable $2; ;;
+    -d|--disable) test_refs; charge disable $2; ;;
     -rd|--re-daemon)
         if $(daemon_mode); then
             if ! $(auto_shut) && ! $(auto_switch); then
@@ -425,15 +374,11 @@ case $1 in
     --launch-daemon)
         while $(auto_shut) || $(auto_switch) && $(daemon_mode); do
             while ! are_refs_set || test -f $lock_file; do sleep 1; done;
-
-            ## auto shut
             if $(auto_shut); then
                 if [[ $(batt_level) -le $(shut_threshold) ]]; then
                     if ! is_charging; then setprop sys.powerctl shutdown; fi;
                 fi;
             fi;
-
-            ## auto switch
             if $(auto_switch); then
                 if [[ $(batt_level) -le $(down_threshold) ]]; then
                     if is_charging; then

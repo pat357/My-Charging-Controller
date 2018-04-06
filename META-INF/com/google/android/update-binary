@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201803231 )
+# mcc Installer ( 201804061 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -19,7 +19,7 @@
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
 
-# Some info about this file
+# Some info about this file.
 
 # This file is the installer script which will be ran by Magisk Manager or
 ## the recovery flashing the module. It firstly will do some detections to
@@ -30,20 +30,17 @@
 ## with the detected references. And finally, it will install or uninstall
 ## the module based on the installtion status.
 
-# Pre-exec operations
 if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
     for message in ' ' '- mcc must be installed from booted Android, aborting...' ' '; do
         echo -e "ui_print $message\nui_print" >>/proc/self/fd/$2;
     done;
     exit 1;
-elif [ $(magisk -V) -lt 1410 ]; then
+elif [ "$(magisk -V)" -lt 1410 ]; then
     echo ' '; echo ' ';
     echo -e "- mcc must be installed with Magisk >= 1410, aborting...\n"; exit 1;
 else
     set -x; echo ' '; echo ' ';
 fi;
-
-# Find BusyBox, Magisk mountpoint and set BusyBox up
 for magisk_bb in $(find /data -type f -name busybox | grep '/magisk/busybox$'); do
     if $magisk_bb | grep 'topjohnwu ' >/dev/null; then
         if image=$(ls ${magisk_bb%/*/*}/magisk.img); then
@@ -71,8 +68,6 @@ export PATH=$tmp_bin:$PATH;
 if [ -z $magisk_bb ] || [ -z $real_mount_point ] || [ "$(which awk)" != $tmp_bin/awk ]; then
     echo -e "- Failed to set environment via Magisk, aborting...\n"; exit 1;
 fi;
-
-# Define variables ( for missing see above )
 zip_file="$3";
 tmp_file=$tmp_dir/cached;
 mount_point=/dev/mcc_img;
@@ -80,8 +75,6 @@ mod_dir=$mount_point/mcc;
 inst_mod_dir=$real_mount_point/mcc;
 lock_file=$inst_mod_dir/cache/lock_d;
 image=${image%/*}/magisk_merge.img;
-
-# Define functions ( they are quite hardcoded )
 
 abort() { printp "$1, aborting..."; exit 1; }
 
@@ -107,14 +100,11 @@ set_perm_recursive() {
     done;
 }
 
-# Print the module banner
 printp '------------------------------------------------'; echo ' ';
 printp "     MC's Charging Controller";
 printp "         by MCMotherEffin' @ XDA Developers";
 printp '------------------------------------------------'; echo ' ';
 echo ' '; echo ' '; echo ' ';
-
-# Test compatibility and set references ( see the Main for documentation )
 printp 'Checking compatibility ( requires the battery be charging )...';
 sleep 3;
 find /sys/devices /sys/module -type f -name uevent >$tmp_file;
@@ -163,8 +153,6 @@ if [[ $i -gt 1 ]]; then
 else
     abort 'Failed the check';
 fi;
-
-# Get the image ready and mounted
 if [[ -f $image ]]; then
     printp "Found $image";
     e2fsck -pf $image >&2;
@@ -193,10 +181,7 @@ done;
 if ! grep -q " $mount_point " /proc/mounts; then
     abort "Failed to mount $image";
 fi;
-
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803231 ]]; then
-
-    # Uninstall
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201804061 ]]; then
     printp 'Same or newer installed, uninstalling to FATU...';
     rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
     kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ');
@@ -204,8 +189,6 @@ if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201803
         umount $inst_mcc; rm -f $inst_mcc; umount ${inst_mcc%/*};
     fi;
 else
-
-    # Install
     rm -rf $mod_dir; mkdir -p $mod_dir/docs $mod_dir/cache;
     printp 'Extracting mcc files...';
     unzip -o "$zip_file" 'system/*' mcc.conf service.sh module.prop -d $mod_dir >&2;
@@ -238,8 +221,6 @@ else
     set_perm_recursive $mod_dir    0 0644;
     set_perm_recursive $bin_dir 2000 0755;
 fi;
-
-# Finalize
 umount $mount_point; losetup -d $loop_device;
 rmdir $mount_point; rm -rf $tmp_dir;
 printp Done; echo ' '; echo ' '; echo ' ';

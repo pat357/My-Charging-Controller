@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201803231 )
+# mcc Service ( 201804061 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -19,7 +19,7 @@
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
 
-# Some info about this file
+# Some info about this file.
 
 # This file is the service script which will be ran for every boot session
 ## by the Magisk daemon. It firstly will set Magisk bundled BusyBox up via
@@ -27,14 +27,11 @@
 ## this script for the current boot session. And finally, it will for five
 ## times maximum attempt to launch the mcc daemon.
 
-# Define variables
 mod_dir=${0%/*};
 mcc_bin=$mod_dir/busybox;
 busybox=$mcc_bin/busybox;
 srv_log=$mod_dir/cache/service.log;
 if ! mcc_main=$(ls /system/xbin/mcc || ls /system/bin/mcc); then exit 1; fi;
-
-# Define functions
 
 log_srv() { log -p $1 -t Magisk "- mcc Service :- $2"; }
 
@@ -42,17 +39,10 @@ is_runningd() {
     ps | grep -v ' grep ' | grep ' root ' | grep ' {mcc} ' | grep -q ' --launch-daemon$';
 }
 
-# Logger
 set -x 2>$srv_log;
-
-({
-# Block Main's execution
+( (
 chmod 0644 $mcc_main;
-
-# Set mod_dir in the Main
-sed -i "47s|.*|    mod_dir=$mod_dir;|" $mcc_main;
-
-# Set BusyBox up
+sed -i "s|^mod_dir=.*|mod_dir=$mod_dir;|" $mcc_main;
 rm -rf $mcc_bin; mkdir $mcc_bin;
 cp -a $(readlink $(which busybox) || which busybox) $busybox;
 chmod 0755 $busybox; chown 0:2000 $busybox;
@@ -62,20 +52,16 @@ if [[ -x $mcc_bin/awk ]]; then
 else
     log_srv e 'Failed to set BusyBox up';
 fi;
-
-# Unblock Main and the daemon
 chmod 0755 $mcc_main;
 rm -f $mod_dir/cache/lock_d;
-
-# Launch the daemon
 sleep 120;
 for i in first second third fourth fifth; do
     if ! is_runningd; then (no_file_logs=true mcc --launch-daemon &); fi;
     sleep 15;
 done;
-if is_running_d; then
+if is_runningd; then
     log_srv i 'mcc daemon was launched successfully';
 else
     log_srv e 'Failed to launch the mcc daemon';
 fi;
-} &)
+) &)

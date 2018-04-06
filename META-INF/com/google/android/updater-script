@@ -1,17 +1,15 @@
 #MAGISK#
 
-# Read the following code for a quick understanding :).
+# Read the following code for a quick understanding :)
 
 # if (you_ever_had_heard_of_shell_edify_replacement()) {
-#     if (why_did_you_came_here()) {
+#     if (why_did_you_came_here() == 0)
 #         ok_see_the_update_binary();
-#     } else {
+#     else
 #         you_dont_need_to_see_this();
-#     }
 # } else {
-#     if (you_go_to_school()) {
+#     if (strcmp(you_go_to_school(), "Yes, I'm a student"))
 #         start_learning_coding();
-#     } else {
+#     else
 #         never_mind_the_code_just_use_it();
-#     }
 # }
