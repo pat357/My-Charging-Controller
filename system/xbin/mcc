@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201804061 )
+# mcc Main ( 201804071 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -13,9 +13,9 @@
 ## GNU GPL as published by the Free Software Foundation provided that this
 ## declaration and the above copyright notice is included.
 
-# mcc was entirely written to help people extend their device's battery by
-## controlling charging, without any kind of WARRANTY, and I can't be held
-## responsible for any damage, or just anything bad happened.
+# mcc was entirely written for helping people extend their batteries' life
+## by controlling charging, without any kind of WARRANTY, and I can not be
+## held responsible for any damage, or just anything bad happened.
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
 
@@ -23,7 +23,7 @@
 
 # This file is the Main script which handles all user operations and does
 ## contain all the core code of mcc. It firstly will do some stuff for su
-## handling, which might resullt in maximux three processes. It will then
+## handling, which might resullt in maximum three processes. It will then
 ## test the environment, which must already be set up by the service. And
 ## then, after a little logs re-direction, it will handle given arguments
 ## which includes the daemon mode. All of them will be handled mostly via
@@ -302,7 +302,7 @@ charge() {
 }
 
 if [[ ! $no_file_logs ]]; then
-    echo 'mcc versionCode = 201804061' >$ver_log;
+    echo 'mcc versionCode = 201804071' >$ver_log;
     echo -e "magisk versionCode = $(magisk -V)\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do

@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201804061 )
+# mcc Service ( 201804071 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -13,9 +13,9 @@
 ## GNU GPL as published by the Free Software Foundation provided that this
 ## declaration and the above copyright notice is included.
 
-# mcc was entirely written to help people extend their device's battery by
-## controlling charging, without any kind of WARRANTY, and I can't be held
-## responsible for any damage, or just anything bad happened.
+# mcc was entirely written for helping people extend their batteries' life
+## by controlling charging, without any kind of WARRANTY, and I can not be
+## held responsible for any damage, or just anything bad happened.
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
 

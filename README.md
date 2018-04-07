@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201804061 )
+###### mcc README ( 201804071 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -12,11 +12,11 @@
    me under the terms of the GNU GPL v3 and you are allowed to use, modify
    or re-distribute the work done for mcc under v3 or any later version of
    GNU GPL as published by the Free Software Foundation provided that this
-   declaration and the above copyright is included.
+   declaration and the above copyright notice is included.
 
-* mcc was entirely written to help people extend their device's battery by
-   controlling charging, without any kind of WARRANTY, and I will not take
-   responsibility for any damage, or just anything bad happened.
+* mcc was entirely written for helping people extend their batteries' life
+   by controlling charging, without any kind of WARRANTY, and I can not be
+   held responsible for any damage, or just anything bad happened.
 
 * Finally, you should obtain a copy of the GNU GPL v3 from [here](http://gnu.org/licenses/).
 

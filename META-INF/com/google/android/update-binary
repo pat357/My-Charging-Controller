@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201804061 )
+# mcc Installer ( 201804071 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -13,9 +13,9 @@
 ## GNU GPL as published by the Free Software Foundation provided that this
 ## declaration and the above copyright notice is included.
 
-# mcc was entirely written to help people extend their device's battery by
-## controlling charging, without any kind of WARRANTY, and I can't be held
-## responsible for any damage, or just anything bad happened.
+# mcc was entirely written for helping people extend their batteries' life
+## by controlling charging, without any kind of WARRANTY, and I can not be
+## held responsible for any damage, or just anything bad happened.
 
 # Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
 
@@ -26,9 +26,9 @@
 ## figure out the environment, then dynamically detect Magisk mount point,
 ## and set BusyBox up. It will then check if the device is compatible with
 ## the module, and as recoveries ( mostly ) contain different kernel, them
-## flashing mcc is unwanted. If the check succeeded, it will edit mcc.conf
-## with the detected references. And finally, it will install or uninstall
-## the module based on the installtion status.
+## flashing mcc is unwanted. If the check was a success, it'd then install
+## or uninstall the module based on the installtion status. And also while
+## installing, it will edit mcc.conf with the detected references.
 
 if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
     for message in ' ' '- mcc must be installed from booted Android, aborting...' ' '; do
@@ -114,7 +114,7 @@ while read uevent; do
     if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $uevent; then
         if is_charging; then
             for ref in ${uevent%/*}/*; do
-                if [[ -f $ref ]]; then
+                if [[ -f $ref ]]mc; then
                     if ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
                         case $(cat $ref) in
                             1       ) c_ON=1;        c_OFF=0;        ;;
@@ -181,7 +181,7 @@ done;
 if ! grep -q " $mount_point " /proc/mounts; then
     abort "Failed to mount $image";
 fi;
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201804061 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201804071 ]]; then
     printp 'Same or newer installed, uninstalling to FATU...';
     rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
     kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ');
