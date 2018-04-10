@@ -1,6 +1,6 @@
 #!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201804071 )
+# mcc Installer ( 201804102 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -61,7 +61,7 @@ for magisk_bb in $(find /data -type f -name busybox | grep '/magisk/busybox$'); 
 done;
 tmp_dir=/dev/mcc_tmp;
 tmp_bin=$tmp_dir/busybox;
-rm -rf $tmp_bin; mkdir -p $tmp_bin;
+rm -rf $tmp_dir; mkdir -p $tmp_bin;
 cp -a $magisk_bb $tmp_bin/;
 $tmp_bin/busybox --install $tmp_bin/;
 export PATH=$tmp_bin:$PATH;
@@ -108,13 +108,13 @@ echo ' '; echo ' '; echo ' ';
 printp 'Checking compatibility ( requires the battery be charging )...';
 sleep 3;
 find /sys/devices /sys/module -type f -name uevent >$tmp_file;
-touch $lock_file;
+if touch $lock_file; then no_file_logs=true mcc --enable >/dev/null; fi;
 i=1;
 while read uevent; do
     if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $uevent; then
         if is_charging; then
             for ref in ${uevent%/*}/*; do
-                if [[ -f $ref ]]mc; then
+                if [[ -f $ref ]]; then
                     if ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
                         case $(cat $ref) in
                             1       ) c_ON=1;        c_OFF=0;        ;;
@@ -181,21 +181,22 @@ done;
 if ! grep -q " $mount_point " /proc/mounts; then
     abort "Failed to mount $image";
 fi;
-if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201804071 ]]; then
+if [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201804102 ]]; then
     printp 'Same or newer installed, uninstalling to FATU...';
-    rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
     kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ');
-    if inst_mcc=$(ls /system/xbin/mcc || ls /system/bin/mcc); then
+    rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
+    if inst_mcc=$(ls /system/xbin/mcc /system/bin/mcc); then
         umount $inst_mcc; rm -f $inst_mcc; umount ${inst_mcc%/*};
     fi;
 else
     rm -rf $mod_dir; mkdir -p $mod_dir/docs $mod_dir/cache;
     printp 'Extracting mcc files...';
-    unzip -o "$zip_file" 'system/*' mcc.conf service.sh module.prop -d $mod_dir >&2;
+    unzip -o "$zip_file" 'system/*' mcc.conf service.sh post-fs-data.sh module.prop -d $mod_dir >&2;
     unzip -o "$zip_file" README.md -d $mod_dir/docs >&2;
-    bin_dir=$mod_dir/system/xbin;
     if [[ ! -d /system/xbin ]]; then
         mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
+    else
+        bin_dir=$mod_dir/system/xbin;
     fi;
     if [[ $(which_installed) -ge 201802251 ]]; then
         if old_conf=$(ls $inst_mod_dir/mcc.conf); then

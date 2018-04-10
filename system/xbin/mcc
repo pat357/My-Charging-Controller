@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201804071 )
+# mcc Main ( 201804102 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -58,7 +58,7 @@ fi;
 
 abort() { printp "$1, aborting..." >&2; printp "$1, aborting..."; exit 1; }
 
-exit_help() { head -n 110 $mod_dir/docs/README.md; exit 1; }
+exit_help() { head -n 113 $mod_dir/docs/README.md; exit 1; }
 
 printp() { echo -e "- $1\n"; }
 
@@ -104,7 +104,7 @@ test_level() {
 }
 
 test_diff() {
-    if [[ ! $1 -ge $(($2 + 5)) && ! $force ]]; then
+    if [[ ! $1 -ge $(($2 + 5)) && ! $no_enforce ]]; then
         abort 'Thresholds must at least be 5 levels far';
     fi;
 }
@@ -121,7 +121,7 @@ test_refs() {
 test_daemon() {
     if ! is_runningd; then
         printp 'mcc daemon is not running, launching it...';
-        (no_file_logs=true mcc --launch-daemon </dev/null >/dev/null 2>&1 &);
+        ( (no_file_logs=true mcc --launch-daemon </dev/null >/dev/null 2>&1) &);
         printp 'It should be running now';
     else
         printp 'mcc daemon is already running';
@@ -149,7 +149,7 @@ test_boundaries() {
             d=$(($1 - 10));
         fi;
     fi;
-    if [[ ! $boundary_err || $force ]]; then
+    if [[ ! $boundary_err || $no_enforce ]]; then
         if [[ -z $u ]]; then u=$1; fi; set_prop up_threshold $u;
         if [[ -z $d ]]; then d=$2; fi; set_prop down_threshold $d;
         printp 'New values saved';
@@ -251,7 +251,7 @@ set_ctrl_refs() {
                         if ! is_charging; then
                             echo $c_ON >$ref; sleep 1;
                             if is_charging; then
-                                set_prop switch_$i "$ref $c_ON $c_OFF"; ((i += 1));
+                                set_prop switch_$i "$ref $c_ON $c_OFF"; ((i++));
                                 if [[ $i -eq 3 ]]; then break 2; fi;
                             fi;
                         fi;
@@ -302,8 +302,8 @@ charge() {
 }
 
 if [[ ! $no_file_logs ]]; then
-    echo 'mcc versionCode = 201804071' >$ver_log;
-    echo -e "magisk versionCode = $(magisk -V)\n" >>$ver_log;
+    echo 'mcc versionCode = 201804102' >$ver_log;
+    echo -e "magisk versionCode = $(magisk -V || echo 0)\n" >>$ver_log;
     echo -e "device properties\n" >>$ver_log;
     for prop in ro.product.brand ro.product.model ro.build.product ro.product.device ro.build.description ro.build.fingerprint ro.product.cpu.abi ro.product.cpu.abilist; do
         echo "$prop :- $(getprop $prop)" >>$ver_log;
@@ -311,7 +311,7 @@ if [[ ! $no_file_logs ]]; then
     echo ' ' >>$ver_log;
     set +x; set -x 2>>$ver_log;
 fi;
-case $1 in -f|--force) force=true; shift; ;; esac;
+case $1 in -f|--force) no_enforce=true; shift; ;; esac;
 case $1 in
     -i|--info)
         test_refs;
@@ -333,8 +333,8 @@ case $1 in
         if is_runningd; then status=Running; else status='Not running'; fi;
         echo -e "-- daemon ( bg activity ) status :- $status\n";
     ;;
-    -h|--help) exit_help; ;;
-    -rc|--reconf) set_ctrl_refs; ;;
+    -h|--help    ) exit_help;      ;;
+    -rc|--reconf ) set_ctrl_refs;  ;;
     -r|--rm-stats) reset_stats rm; ;;
     --donate)
         printp 'Heyyo!!! Thanks'; sleep 2;
@@ -358,7 +358,7 @@ case $1 in
         fi;
         toggle daemon_mode 'daemon mode';
     ;;
-    -e|--enable) test_refs; charge enable $2; ;;
+    -e|--enable ) test_refs; charge enable $2;  ;;
     -d|--disable) test_refs; charge disable $2; ;;
     -rd|--re-daemon)
         if $(daemon_mode); then
@@ -372,25 +372,31 @@ case $1 in
         fi;
     ;;
     --launch-daemon)
+        if is_runningd; then abort 'mcc daemon is already running'; fi;
         while $(auto_shut) || $(auto_switch) && $(daemon_mode); do
-            while ! are_refs_set || test -f $lock_file; do sleep 1; done;
-            if $(auto_shut); then
-                if [[ $(batt_level) -le $(shut_threshold) ]]; then
-                    if ! is_charging; then setprop sys.powerctl shutdown; fi;
-                fi;
-            fi;
-            if $(auto_switch); then
-                if [[ $(batt_level) -le $(down_threshold) ]]; then
-                    if is_charging; then
-                        if [[ $no_ckcurrent || $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0 ]]; then
-                            no_ckcurrent=true;
-                        else
-                            switch_ OFF;
+            if are_refs_set && test ! -f $lock_file; then
+                if $(auto_shut); then
+                    if [[ $(batt_level) -le $(shut_threshold) ]]; then
+                        if ! is_charging; then
+                            setprop sys.powerctl shutdown;
                         fi;
                     fi;
-                    if ! is_charging; then switch_ ON; fi;
-                elif [[ $(batt_level) -ge $(up_threshold) ]]; then
-                    if is_charging; then switch_ OFF; unset no_ckcurrent; fi;
+                fi;
+                if $(auto_switch); then
+                    if [[ $(batt_level) -le $(down_threshold) ]]; then
+                        if is_charging; then
+                            if [[ $no_ckcurrent || $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0 ]]; then
+                                no_ckcurrent=true;
+                            else
+                                switch_ OFF;
+                            fi;
+                        fi;
+                        if ! is_charging; then switch_ ON; fi;
+                    elif [[ $(batt_level) -ge $(up_threshold) ]]; then
+                        if is_charging; then
+                            switch_ OFF; unset no_ckcurrent;
+                        fi;
+                    fi;
                 fi;
             fi;
             sleep 1;
@@ -405,7 +411,7 @@ case $1 in
         if [[ ! -z $2 ]]; then
             if echo $2 | grep -Eq '^[0-9]+$'; then
                 if [[ $2 -gt 20 || $2 -lt 5 ]]; then
-                    if [[ ! $force ]]; then
+                    if [[ ! $no_enforce ]]; then
                         abort 'Threshold must be in the range 5 - 20';
                     else
                         test_bound $2;

@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201804102 )
+# mcc Post FS-Data ( 201804102 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -21,27 +21,23 @@
 
 # Some info about this file.
 
-# This file is the service script which will be ran for every boot session
-## by the Magisk daemon. It firstly will set Magisk bundled BusyBox up via
-## hardlinks. And then, it'd, for five times maximum attempt to launch the
-## mcc daemon. It won't run unless post-fs-data script is finished as it's
-## a post-pfsd script, it requires pfsd be done.
+# This file is the post-fs-data script which will be ran for every boot by
+## the Magisk daemon. As modifying Magic Mounted files on some devices has
+## weird effect, we need to patch the Main before that, and so is required
+## this script. And finally, it is the pre-service mode, so must finish to
+## allow service's execution.
 
 ( ( (
 mod_dir=${0%/*};
+cache_dir=$mod_dir/cache;
 mcc_bin=$mod_dir/busybox;
-busybox=$mcc_bin/busybox;
-yielder=$mod_dir/pfsd_done;
-while [[ ! -f $yielder ]]; do sleep 1; done;
-set -x 2>>$mod_dir/cache/boot_act.log;
-cp $(readlink $(which busybox) || which busybox) $busybox;
-chmod 0755 $busybox; chown 0:2000 $busybox;
-if $busybox --install $mcc_bin/; then echo 1; else echo 0; fi;
-sleep 120;
-chmod 0755 $(ls /system/xbin/mcc /system/bin/mcc);
-for i in 1 2 3 4 5; do
-    ( (no_file_logs=true mcc --launch-daemon) &); sleep 10;
-done;
-ps | grep -v ' grep ' | grep ' root ' | grep ' {mcc} ' | grep ' --launch-daemon$' >&2;
-rm -f $yielder;
-) 2>>${0%/*}/cache/boot_act_err.log) &)
+mcc_main=$(ls $mod_dir/system/xbin/mcc $mod_dir/system/bin/mcc);
+set -x 2>$cache_dir/boot_act.log;
+chmod 0644 $mcc_main;
+rm -rf $mcc_bin $cache_dir/lock_d; mkdir $mcc_bin;
+if ! sed -i "s|^mod_dir=.*|mod_dir=$mod_dir;|g" $mcc_main; then
+    sed -i "s|^mod_dir=.*|mod_dir=$mod_dir;|g" <$mcc_main >$mcc_main;
+fi;
+grep "^mod_dir=$mod_dir;$" $mcc_main >&2;
+touch $mod_dir/pfsd_done;
+) 2>${0%/*}/cache/boot_act_err.log) &)

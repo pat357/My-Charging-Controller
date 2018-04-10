@@ -1,10 +1,10 @@
 ###### MC's Charging Controller
-###### mcc README ( 201804071 )
+###### mcc README ( 201804102 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
 
-# Legal
+## Legal
 
 * This file is a part of the project "MC's Charging Controller ( mcc )".
 
@@ -20,19 +20,19 @@
 
 * Finally, you should obtain a copy of the GNU GPL v3 from [here](http://gnu.org/licenses/).
 
-# Links
+## Links
 
 * [Source Code](https://github.com/Magisk-Modules-Repo/MC-s-Charging-Controller)
 * [Support Thread](https://forum.xda-developers.com/apps/magisk/mcs-charging-controller-t3739371)
 * [Battery University](http://batteryuniversity.com/learn/article/how_to_prolong_lithium_based_batteries)
 * [Donate to Me](https://paypal.me/JayminSuthar)
 
-# Introduction
+## Introduction
 
-* ### Control when to enable / disable charging your device
-* ### Contains most basic things for extending battery life
+* #### Control when to enable / disable charging your battery
+* #### With most of things required to extend batteries' life
 
-# Usage
+## Usage
 
 * You should use a terminal for interacting with the mcc, for
    a custom ROM, see 'Development settings'
@@ -40,14 +40,18 @@
 * Having a root shell is not necessary, but still recommended
 * From a terminal, run 'mcc ARGS...', ARGS are detailed below
 
-# Options
+## Options
 
-    [ -s / --switch ] [ -p / --shut ] [ -f / --force ] [ -e / --enable ]
-    [ -d / --disable ] [ -ts / --auto-switch ] [ -tp / --auto-shut ]
-    [ -dm / --daemon-mode ] [ -rd / --re-daemon ] [ -df / --default ]
-    [ -i / --info ] [ -r / --rm-stats ] [ -rc / --reconf ] [ -h / --help ]
+* [ -f / --force ] [ -s / --switch ] [ -p / --shut ]
+* [ -e / --enable ] [ -d / --disable ]
+* [ -ts / --auto-switch ] / [ -tp / --auto-shut ] /
+  [ -dm / --daemon-mode ]
+* [ -rd / --re-daemon ] / [ -df / --default ] /
+  [ -r / --rm-stats ]
+* [ -i / --info ] / [ -h / --help ]
+* [ -rc / --reconf ]
 
-# Examples
+## Examples
 
 * 'mcc -s 85 65'   -->   Sets auto switch thresholds to 85 65
 * 'mcc -s 55'      -->   Sets auto switch up threshold to 55
@@ -69,7 +73,7 @@
 * 'mcc -rc'        -->   Re-configures sysfs references
 * 'mcc -h'         -->   Shows this README page
 
-# Miscellanous
+## Miscellanous
 
 * Auto switch and auto shut are part of the daemon mode, thus
    they can't be used without the daemon mode
@@ -78,14 +82,15 @@
 * [ -rc / --reconf ] must be ran whenever you flash different
    kernel
 
-# Remember
+## Remember
 
 * mcc requires Magisk >= 1410 and 'MM' as installation medium
+* mcc Installer requires MagiskHide disabled, or it conflicts
 * Installation / [ -rc / --reconf ] requires charging enabled
 * Installation / [ -rc / --reconf ] can take a few sec / mins
 * Resetting battery stats might not work for some old devices
 
-# Support / Bugs / Feature request
+## Support / Bugs / Feature request
 
 * All the support, bug, and feature related posts should take
    place in my official XDA thread
@@ -96,33 +101,38 @@
 * Explain clearly how the feature is to behave, mention me if
    required
 
-# Thanks
+## Thanks
 
 * @topjohnwu for making such a platform
 * Other resources of the scripting code
 * Do not know why is the last one me ??
 
-# Donate
+## Encourage Me
 
-* All of the work that I have done comes out of my free time,
-  I am just a 17 year old student, who does it all as a hobby
-  so if you like my works, and want to encourage further work
-* Feel free to donate to me ( a lil tea, run 'mcc --donate' )
+* I don't accept donation, so if you like my work, please hit
+  'Thanks' button on the official thread to encourage me.
 
-# Release Notes
+## Release Notes
 
-### 1.5
+#### 1.5.1.MR
 
 * Hi users,
-* The final build by me is here, as I will be prepping for my
-  college admissions. If someone is willing to develop it, PM
-  me at XDA or open an issue at GitHub and I'd give you write
-  access to the Repo.
-* This build is nothing other than previous build, but having
-  fixed the Magisk mountpoint, BusyBox setup, and other minor
-  issues.
-* A quick tip: If Magisk changes its mountpoint again, simply
-  edit LINE 45 in /system/{x,}bin/mcc, NOTHING else.
-* Quick tip 2: All the core logic is documented, nothing else
-  is there, I think logic builds program, not coding skills.
-* Wish me luck and Goodbye.....
+* This build is to fix two major bugs which I identified just
+  now. First is the well-known, conflict of the mcc Installer
+  and the mcc daemon, and the second is the daemon misbehaves
+  if refs are not set or the lock file is created. Both of em
+  have been fixed. While the first prevents mccs installtion,
+  the second causes unwanted reboots for cases while the user
+  has misused the lock file feature or have modified the conf
+  file. After this fixations, I can proudly say that mcc does
+  not have no bugs now...
+* Another thing is that mcc now patches the Main before Magic
+  mounting has happened, so in theory, there will not be need
+  to make any modifications if Magisk changes its mount point
+  again, just enjoy!!! Regarding boot scripts, they log their
+  errors now too as well as commands executed.
+* And also while some advanced users did directly run the mcc
+  daemon, I have also prevented the daemon from running, only
+  mcc internals can fork it, and that should be when required
+  by mcc. This blocking also helps the initial daemon call on
+  the boot a great algorithmic space, so is great.
