@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Post FS-Data ( 201804102 )
+# mcc Post FS-Data ( 201804111 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -17,24 +17,17 @@
 ## by controlling charging, without any kind of WARRANTY, and I can not be
 ## held responsible for any damage, or just anything bad happened.
 
-# Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
-
-# Some info about this file.
-
-# This file is the post-fs-data script which will be ran for every boot by
-## the Magisk daemon. As modifying Magic Mounted files on some devices has
-## weird effect, we need to patch the Main before that, and so is required
-## this script. And finally, it is the pre-service mode, so must finish to
-## allow service's execution.
+# Finally, you should have received a copy of the GPL v3 with mcc, if not,
+## see <http://gnu.org/licenses/>.
 
 ( ( (
 mod_dir=${0%/*};
 cache_dir=$mod_dir/cache;
 mcc_bin=$mod_dir/busybox;
-mcc_main=$(ls $mod_dir/system/xbin/mcc $mod_dir/system/bin/mcc);
+mcc_main=$(ls $mod_dir/system/xbin/mcc $mod_dir/system/bin/mcc | head -1);
 set -x 2>$cache_dir/boot_act.log;
 chmod 0644 $mcc_main;
-rm -rf $mcc_bin $cache_dir/lock_d; mkdir $mcc_bin;
+rm -rf $cache_dir/lock $mcc_bin; mkdir $mcc_bin;
 if ! sed -i "s|^mod_dir=.*|mod_dir=$mod_dir;|g" $mcc_main; then
     sed -i "s|^mod_dir=.*|mod_dir=$mod_dir;|g" <$mcc_main >$mcc_main;
 fi;

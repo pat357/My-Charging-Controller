@@ -1,5 +1,5 @@
 ###### MC's Charging Controller
-###### mcc README ( 201804102 )
+###### mcc README ( 201804111 )
 ###### MCMotherEffin' @ XDA Developers
 
 ###### Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -18,14 +18,13 @@
    by controlling charging, without any kind of WARRANTY, and I can not be
    held responsible for any damage, or just anything bad happened.
 
-* Finally, you should obtain a copy of the GNU GPL v3 from [here](http://gnu.org/licenses/).
+* Finally, you should have received a copy of the GPL v3 with mcc, if not,
+   see <http://gnu.org/licenses/>.
 
 ## Links
 
 * [Source Code](https://github.com/Magisk-Modules-Repo/MC-s-Charging-Controller)
 * [Support Thread](https://forum.xda-developers.com/apps/magisk/mcs-charging-controller-t3739371)
-* [Battery University](http://batteryuniversity.com/learn/article/how_to_prolong_lithium_based_batteries)
-* [Donate to Me](https://paypal.me/JayminSuthar)
 
 ## Introduction
 
@@ -35,7 +34,7 @@
 ## Usage
 
 * You should use a terminal for interacting with the mcc, for
-   a custom ROM, see 'Development settings'
+  a custom ROM, see 'Development settings'
 * mcc checks every input for any little error, so don't worry
 * Having a root shell is not necessary, but still recommended
 * From a terminal, run 'mcc ARGS...', ARGS are detailed below
@@ -49,7 +48,7 @@
 * [ -rd / --re-daemon ] / [ -df / --default ] /
   [ -r / --rm-stats ]
 * [ -i / --info ] / [ -h / --help ]
-* [ -rc / --reconf ]
+* [ -ri / --reset-int ]
 
 ## Examples
 
@@ -58,7 +57,7 @@
 * 'mcc -f -s 95'   -->   Force sets auto swi* up threshold 95
 * 'mcc -p 15'      -->   Sets auto shut threshold to 15
 * 'mcc -f -p 3'    -->   Force sets auto shut threshold to 3
-* 'mcc -df'        -->   Resets all the thresholds to default
+* 'mcc -df'        -->   Resets all thresholds to defaults
 * 'mcc -ts'        -->   Toggles auto switch ON / OFF
 * 'mcc -tp'        -->   Toggles auto shut ON / OFF
 * 'mcc -dm'        -->   Toggles daemon mode ON / OFF
@@ -70,49 +69,53 @@
 * 'mcc -e 95%'     -->   Enables charging until 95 percents
 * 'mcc -i'         -->   Shows info about current status
 * 'mcc -r'         -->   Resets battery statistics
-* 'mcc -rc'        -->   Re-configures sysfs references
+* 'mcc -ri'        -->   Resets mcc internal configurations
 * 'mcc -h'         -->   Shows this README page
 
 ## Miscellanous
 
 * Auto switch and auto shut are part of the daemon mode, thus
-   they can't be used without the daemon mode
-* The [ -s / --switch ] argument automatically sets the lower
-   threshold based on the higher one
-* [ -rc / --reconf ] must be ran whenever you flash different
-   kernel
+  they can't be used without the daemon mode
+* The [ -s / --switch ] option will automatically figure down
+  threshold based on the up one
+* [ -ri / --reset-int ] must be ran after you flash different
+  kernel
 
 ## Remember
 
 * mcc requires Magisk >= 1410 and 'MM' as installation medium
-* mcc Installer requires MagiskHide disabled, or it conflicts
-* Installation / [ -rc / --reconf ] requires charging enabled
-* Installation / [ -rc / --reconf ] can take a few sec / mins
+* mcc Installer expects MagiskHide disabled, or it'd conflict
+* mcc Installer or [ -ri / --reset-int ] requires charging ON
+* Installation / [ -ri / --reset-int ] can take a few minutes
 * Resetting battery stats might not work for some old devices
 
 ## Support / Bugs / Feature request
 
 * All the support, bug, and feature related posts should take
-   place in my official XDA thread
+  place in my official XDA thread
 * Explain clearly what assistance you are seeking, mention me
-   if required
+  if required
 * Explain clearly how the bug affects the program, mention me
-   always so I can notice
+  always so I can notice
 * Explain clearly how the feature is to behave, mention me if
-   required
+  required
 
 ## Thanks
 
 * @topjohnwu for making such a platform
 * Other resources of the scripting code
-* Do not know why is the last one me ??
+* I don't know why is the last one me??
 
 ## Encourage Me
 
 * I don't accept donation, so if you like my work, please hit
-  'Thanks' button on the official thread to encourage me.
+  the 'Thanks' button on the official thread to encourage me.
 
 ## Release Notes
+
+#### 1.6
+
+* Placeholder
 
 #### 1.5.1.MR
 

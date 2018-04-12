@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201804102 )
+# mcc Service ( 201804111 )
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
@@ -17,15 +17,8 @@
 ## by controlling charging, without any kind of WARRANTY, and I can not be
 ## held responsible for any damage, or just anything bad happened.
 
-# Finally, you should obtain a copy of the GNU GPL v3 from <http://gnu.org/licenses/>.
-
-# Some info about this file.
-
-# This file is the service script which will be ran for every boot session
-## by the Magisk daemon. It firstly will set Magisk bundled BusyBox up via
-## hardlinks. And then, it'd, for five times maximum attempt to launch the
-## mcc daemon. It won't run unless post-fs-data script is finished as it's
-## a post-pfsd script, it requires pfsd be done.
+# Finally, you should have received a copy of the GPL v3 with mcc, if not,
+## see <http://gnu.org/licenses/>.
 
 ( ( (
 mod_dir=${0%/*};
@@ -34,13 +27,13 @@ busybox=$mcc_bin/busybox;
 yielder=$mod_dir/pfsd_done;
 while [[ ! -f $yielder ]]; do sleep 1; done;
 set -x 2>>$mod_dir/cache/boot_act.log;
-cp $(readlink $(which busybox) || which busybox) $busybox;
+cp $(readlink $(which busybox) || which busybox) $mcc_bin/;
 chmod 0755 $busybox; chown 0:2000 $busybox;
 if $busybox --install $mcc_bin/; then echo 1; else echo 0; fi;
 sleep 120;
-chmod 0755 $(ls /system/xbin/mcc /system/bin/mcc);
+chmod 0755 $(ls /system/xbin/mcc /system/bin/mcc | head -1);
 for i in 1 2 3 4 5; do
-    ( (no_file_logs=true mcc --launch-daemon) &); sleep 10;
+    ( (no_file_logs=true mcc --launch-daemon) &); sleep 5;
 done;
 ps | grep -v ' grep ' | grep ' root ' | grep ' {mcc} ' | grep ' --launch-daemon$' >&2;
 rm -f $yielder;
