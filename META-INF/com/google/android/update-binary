@@ -1,136 +1,90 @@
-#!/sbin/sh
+merge_root#!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201804111 )
+# mcc Installer ( 201804141 )
 # MCMotherEffin' @ XDA Developers
 
-# Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
+# Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
-# This file is a part of the project "MC's Charging Controller ( mcc )".
+# This file is a part of "MC's Charging Controller ( mcc )".
 
-# I MCMotherEffin', hereby declare that mcc is originally distributed from
-## me under the terms of the GNU GPL v3 and you are allowed to use, modify
-## or re-distribute the work done for mcc under v3 or any later version of
-## GNU GPL as published by the Free Software Foundation provided that this
-## declaration and the above copyright notice is included.
+# mcc is released under the terms of the GNU GPL v3, as been
+## published by the Free Software Foundation. And permission
+## hereby is granted to use, modify or redistribute it maybe
+## partially or entirely under only GPLv3.
 
-# mcc was entirely written for helping people extend their batteries' life
-## by controlling charging, without any kind of WARRANTY, and I can not be
-## held responsible for any damage, or just anything bad happened.
+# mcc was written in a hope of being useful. And any kind of
+## WARRANTY is NOT provided. And I can't be held responsible
+## for anything caused byb it.
 
-# Finally, you should have received a copy of the GPL v3 with mcc, if not,
-## see <http://gnu.org/licenses/>.
+# You should already have received a copy of GPLv3 with mcc,
+## if not, see <http://www.gnu.org/licenses/>.
 
 if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
-    for message in ' ' 'mcc: error: mcc requires Magisk Manager as medium' ' '; do
-        echo -e "ui_print $message\nui_print" >>/proc/self/fd/$2;
+    for line in ' ' 'mcc: error: mcc requires Magisk Manager installation' ' '; do
+        echo -e "ui_print $line\nui_print" >>/proc/self/fd/$2;
     done;
     exit 1;
-elif [ "$(magisk -V)" -lt 1410 ]; then
-    echo ' '; echo ' ';
-    echo -e "mcc: error: mcc requires Magisk >= 1410\n";
-    exit 1;
+elif ! util_funcs=$(ls /data/adb/magisk/util_functions.sh || ls /data/magisk/util_functions.sh) || test ! $(sed -n 's/^MAGISK_VER_CODE=//p' $util_funcs) -ge 1410; then
+    echo -e 'mcc: error: mcc requires Magisk >= 1410\n'; exit 1;
 fi;
-set -x; echo ' '; echo ' ';
-for magisk_bb in $(find /data -type f -name busybox | grep '/magisk/busybox$'); do
-    if $magisk_bb | grep 'topjohnwu ' >/dev/null; then
-        if image=$(ls ${magisk_bb%/*/*}/magisk.img); then
-            for loop_device in /dev/block/loop*; do
-                if $magisk_bb losetup $loop_device | grep " $image$" >/dev/null; then
-                    for real_mount_point in $(grep "^$loop_device " /proc/mounts | $magisk_bb awk '{ print $2 }' | grep -Ev '^/system|^/vendor'); do
-                        if grep '^com.google.android.gms.unstable$' $real_mount_point/.core/hidelist >/dev/null && test -d $real_mount_point/lost+found && test -d $real_mount_point/.core/service.d; then
-                            break 3;
-                        fi;
-                        unset real_mount_point;
-                    done;
-                fi;
-            done;
-        fi;
-    fi;
-    unset magisk_bb;
-done;
-tmp_dir=/dev/mcc_tmp;
-tmp_bin=$tmp_dir/busybox;
-rm -rf $tmp_dir; mkdir -p $tmp_bin;
-cp -a $magisk_bb $tmp_bin/;
-$tmp_bin/busybox --install $tmp_bin/;
-export PATH=$tmp_bin:$PATH;
-if [ -z $magisk_bb ] || [ -z $real_mount_point ] || [ -z "$(which awk)" ]; then
-    echo -e "mcc: error: Failed to detect Magisk environment\n"; exit 1;
-fi;
+set -x; echo -e '\n';
 zip_file="$3";
-tmp_file=$tmp_dir/cached;
-mount_point=$tmp_dir/img;
-mod_dir=$mount_point/mcc;
-inst_mod_dir=$real_mount_point/mcc;
-lock_file=$inst_mod_dir/cache/lock;
-image=${image%/*}/magisk_merge.img;
-
+tmp_dir=/dev/mcc_tmp;
+tmp_file=$tmp_dir/tmp_f;
+merge_root=$tmp_dir/img;
+mod_dir=$merge_root/mcc;
+image=${util_funcs%/*/*}/magisk_merge.img;
+mount_point=$(find /sbin/.core/img /magisk -type d -maxdepth 0 | head -n 1);
+main_mod_dir=$mount_point/mcc;
+lock_file=$main_mod_dir/lock;
 abort() { echo -e "mcc: error: $1\n"; exit 1; }
-
 printp() { echo -e "mcc: info: $1\n"; }
-
 get_prop() { sed -n "s/^$1=//p" $2; }
-
-set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/mcc.conf; }
-
+set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/files/secure/mcc.conf; }
 is_charging() { grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent; }
-
-which_installed() { get_prop versionCode $inst_mod_dir/module.prop || echo 0; }
-
+which_installed() { get_prop versionCode $main_mod_dir/module.prop || echo 0; }
 imgsize_test() {
-    e2fsck -n $image | grep -Eo '[0-9]+/[0-9]+ blocks' | cut -d/ -f$1 | awk '{ print int(($1 + 255) / 256) }';
+    e2fsck -n $image | grep -Eo '[0-9]+/[0-9]+ blocks' | awk -F/ "{ print int((\$$1 + 255) / 256) }";
 }
-
 set_perm_recursive() {
     find $1 | while read entry; do
         chown 0:$2 $entry;
-        chmod $3 $entry;
-        if [[ -d $entry ]]; then chmod 0755 $entry; fi;
+        chmod $3 $entry; if [[ -d $entry ]]; then chmod 0755 $entry; fi;
         chcon u:object_r:system_file:s0 $entry;
     done;
 }
-
-echo '------------------------------------------------'; echo ' ';
-echo "     MC's Charging Controller";
-echo "         MCMotherEffin' @ XDA Developers";
-echo '------------------------------------------------'; echo ' ';
-echo ' '; echo ' ';
-printp 'Checking compatibility ( requires charging ON )...';
-sleep 3;
+rm -rf $tmp_dir; mkdir -p $merge_root;
+echo -e '-------------------------------------------------------------\n';
+echo "                  MC's Charging Controller                      ";
+echo -e '-------------------------------------------------------------\n\n\n';
+printp 'Checking compatibility ( requires charging ON )...'; sleep 3;
 find /sys/devices /sys/module -type f -name uevent >$tmp_file;
-if touch $lock_file; then no_file_logs=true mcc --enable >/dev/null; fi;
+export no_ver_logs=true; (mcc --enable; sleep 2; mcc --clean) >/dev/null;
 i=1;
 while read uevent; do
-    if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $uevent && is_charging; then
+    if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9-]+$' $uevent; then
         while read eff_uevent; do
-            if (grep -q '^POWER_SUPPLY_NAME=.*[Bb]att.*$' $eff_uevent && grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $eff_uevent) || grep -q '^DRIVER=.*[Cc]harger.*$' $eff_uevent; then
+            if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent || grep -Eq '^DRIVER=.*([Cc]harg(er|ing)|[Bb]att)' $eff_uevent; then
                 for ref in ${eff_uevent%/*}/*; do
-                    if [[ -f $ref ]]; then
-                        if ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
-                            case $(cat $ref) in
-                                1       ) c_ON=1;        c_OFF=0;        ;;
-                                0       ) c_ON=0;        c_OFF=1;        ;;
-                                on      ) c_ON=on;       c_OFF=off;      ;;
-                                off     ) c_ON=off;      c_OFF=on;       ;;
-                                true    ) c_ON=true;     c_OFF=false;    ;;
-                                false   ) c_ON=false;    c_OFF=true;     ;;
-                                enable  ) c_ON=enable;   c_OFF=disable;  ;;
-                                disable ) c_ON=disable;  c_OFF=enable;   ;;
-                                enabled ) c_ON=enabled;  c_OFF=disabled; ;;
-                                disabled) c_ON=disabled; c_OFF=enabled;  ;;
-                                *       ) continue;                      ;;
-                            esac;
-                            echo $c_OFF >$ref; sleep 1;
-                            if ! is_charging; then
-                                echo $c_ON >$ref; sleep 1;
-                                if is_charging; then
-                                    eval switch_$i=\"$ref $c_ON $c_OFF\";
-                                    let i++;
-                                    if [[ $i -eq 3 ]]; then break 3; fi;
-                                fi;
+                    if test -f $ref && ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
+                        case $(cat $ref) in
+                            1       ) c_ON=1;        c_OFF=0;        ;;
+                            0       ) c_ON=0;        c_OFF=1;        ;;
+                            enable  ) c_ON=enable;   c_OFF=disable;  ;;
+                            disable ) c_ON=disable;  c_OFF=enable;   ;;
+                            enabled ) c_ON=enabled;  c_OFF=disabled; ;;
+                            disabled) c_ON=disabled; c_OFF=enabled;  ;;
+                            *       ) continue;                      ;;
+                        esac;
+                        echo $c_OFF >$ref; sleep 0.5;
+                        if ! is_charging; then
+                            echo $c_ON >$ref; sleep 0.5;
+                            if is_charging; then
+                                eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
+                                if [[ $i -eq 3 ]]; then break 3; fi;
                             fi;
-                            echo $c_ON >$ref;
                         fi;
+                        echo $c_ON >$ref;
                     fi;
                 done;
                 if [[ $i -gt 1 ]]; then break 2; fi;
@@ -138,9 +92,8 @@ while read uevent; do
         done <$tmp_file;
     fi;
 done <$tmp_file;
-rm -f $lock_file;
 if [[ $i -eq 1 ]]; then abort 'Failed the check'; fi;
-printp OK; echo ' '; echo ' ';
+printp OK; echo -e '\n';
 if [[ -f $image ]]; then
     printp "$image exists";
     e2fsck -pf $image >&2;
@@ -156,56 +109,42 @@ else
     fi;
 fi;
 printp "Mounting $image...";
-mkdir $mount_point;
 for minor in 1 2 3 4 5 6 7; do
     loop_device=/dev/block/loop$minor;
     if [[ ! -b $loop_device ]]; then mknod $loop_device b 7 $minor; fi;
-    if losetup $loop_device $image; then
-        if mount -t ext4 -o rw,noatime $loop_device $mount_point; then
-            break;
-        fi;
+    losetup $loop_device $image;
+    if mount -t ext4 -o rw,noatime $loop_device $merge_root; then
+        break;
     fi;
 done;
-if ! grep -q " $mount_point " /proc/mounts; then
+if ! grep -q " $merge_root " /proc/mounts; then
     abort "Failed to mount $image";
-elif [[ $(get_prop versionCode $mod_dir/module.prop || which_installed) -ge 201804111 ]]; then
-    printp 'Same or newer already installed, uninstalling...';
-    kill $(ps | grep -v ' grep ' | grep ' {mcc} ' | awk '{ print $1 }' | tr '\n' ' ');
-    rm -rf $mod_dir $inst_mod_dir /cache/mcc_e*.log;
-    if inst_mcc=$(ls /system/xbin/mcc /system/bin/mcc | head -1); then
-        umount $inst_mcc; rm -f $inst_mcc; umount ${inst_mcc%/*};
-    fi;
-else
-    rm -rf $mod_dir; mkdir -p $mod_dir/docs $mod_dir/cache;
-    printp 'Extracting mcc files...';
-    unzip -o "$zip_file" 'system/*' post-fs-data.sh service.sh mcc.conf module.prop -d $mod_dir >&2;
-    unzip -o "$zip_file" LICENSE.md README.md -d $mod_dir/docs >&2;
-    bin_dir=$mod_dir/system/xbin;
-    if [[ ! -d /system/xbin ]]; then
-        mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
-    fi;
-    set_prop uevent $uevent;
-    for i in 1 2; do
-        switch="$(eval echo \$switch_$i)";
-        if [[ -z $switch ]]; then break; fi;
-        set_prop switch_$i "$switch";
-    done;
-    if [[ $(which_installed) -ge 201802251 ]]; then
-        if old_conf=$(ls $inst_mod_dir/mcc.conf); then
-            printp 'Restoring configurations...';
-            for prop in auto_shut auto_switch daemon_mode up_threshold down_threshold shut_threshold; do
-                set_prop $prop $(get_prop $prop $old_conf);
-            done;
-        fi;
-    fi;
-    mkdir $inst_mod_dir;
-    touch $mod_dir/auto_mount $inst_mod_dir/update;
-    cp -f $mod_dir/module.prop $inst_mod_dir/;
-    printp 'Setting permissions...';
-    set_perm_recursive $mod_dir    0 0644;
-    set_perm_recursive $bin_dir 2000 0755;
 fi;
-umount $mount_point; losetup -d $loop_device;
+rm -rf $mod_dir; mkdir -p $mod_dir/docs $main_mod_dir;
+printp 'Extracting mcc files...';
+unzip -o "$zip_file" 'system/*' 'files/*' post-fs-data.sh service.sh module.prop -d $mod_dir >&2;
+unzip -o "$zip_file" COPYING README.md -d $mod_dir/docs >&2;
+bin_dir=$mod_dir/system/xbin;
+if [[ ! -d /system/xbin ]]; then
+    mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
+fi;
+set_prop uevent $uevent;
+for i in 1 2; do
+    switch="$(eval echo \$switch_$i)";
+    if [[ ! -z $switch ]]; then set_prop switch_$i "$switch"; fi;
+done;
+if test $(which_installed) -ge 201804141 && old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
+    printp 'Restoring configurations...';
+    for prop in auto_shut auto_switch up_threshold down_threshold shut_threshold; do
+        set_prop $prop $(get_prop $prop $old_conf);
+    done;
+fi;
+touch $mod_dir/auto_mount $main_mod_dir/update;
+cp -f $mod_dir/module.prop $main_mod_dir/;
+printp 'Setting permissions...';
+set_perm_recursive $mod_dir    0 0644;
+set_perm_recursive $bin_dir 2000 0755;
+umount $merge_root; losetup -d $loop_device;
 rm -rf $tmp_dir;
-printp Done; echo ' '; echo ' ';
+printp Done; echo -e '\n';
 exit 0;

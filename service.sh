@@ -1,40 +1,37 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Service ( 201804111 )
+# mcc Service ( 201804141 )
 # MCMotherEffin' @ XDA Developers
 
-# Copyright (c) 2018 Jaymin " MCMotherEffin' " Suthar. All rights reserved.
+# Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
-# This file is a part of the project "MC's Charging Controller ( mcc )".
+# This file is a part of "MC's Charging Controller ( mcc )".
 
-# I MCMotherEffin', hereby declare that mcc is originally distributed from
-## me under the terms of the GNU GPL v3 and you are allowed to use, modify
-## or re-distribute the work done for mcc under v3 or any later version of
-## GNU GPL as published by the Free Software Foundation provided that this
-## declaration and the above copyright notice is included.
+# mcc is released under the terms of the GNU GPL v3, as been
+## published by the Free Software Foundation. And permission
+## hereby is granted to use, modify or redistribute it maybe
+## partially or entirely under only GPLv3.
 
-# mcc was entirely written for helping people extend their batteries' life
-## by controlling charging, without any kind of WARRANTY, and I can not be
-## held responsible for any damage, or just anything bad happened.
+# mcc was written in a hope of being useful. And any kind of
+## WARRANTY is NOT provided. And I can't be held responsible
+## for anything caused by it.
 
-# Finally, you should have received a copy of the GPL v3 with mcc, if not,
-## see <http://gnu.org/licenses/>.
+# You should already have received a copy of GPLv3 with mcc,
+## if not, see <http://www.gnu.org/licenses/>.
 
 ( ( (
 mod_dir=${0%/*};
+files_dir=$mod_dir/files;
 mcc_bin=$mod_dir/busybox;
 busybox=$mcc_bin/busybox;
-yielder=$mod_dir/pfsd_done;
-while [[ ! -f $yielder ]]; do sleep 1; done;
-set -x 2>>$mod_dir/cache/boot_act.log;
-cp $(readlink $(which busybox) || which busybox) $mcc_bin/;
+set -x 2>>$files_dir/boot.log;
+rm -rf $mcc_bin $mod_dir/lock; mkdir $mcc_bin;
+cp -a $(which busybox) $mcc_bin/;
+$busybox --install $mcc_bin/;
 chmod 0755 $busybox; chown 0:2000 $busybox;
-if $busybox --install $mcc_bin/; then echo 1; else echo 0; fi;
 sleep 120;
-chmod 0755 $(ls /system/xbin/mcc /system/bin/mcc | head -1);
-for i in 1 2 3 4 5; do
-    ( (no_file_logs=true mcc --launch-daemon) &); sleep 5;
-done;
-ps | grep -v ' grep ' | grep ' root ' | grep ' {mcc} ' | grep ' --launch-daemon$' >&2;
-rm -f $yielder;
-) 2>>${0%/*}/cache/boot_act_err.log) &)
+sed -i 's/^superceded_yet=.*/superceded_yet=0/g' $files_dir/secure/mcc.conf;
+chmod 0755 $(ls /system/xbin/mcc || ls /system/bin/mcc);
+for i in 1 2 3 4 5; do no_ver_logs=true mcc --launch-daemon; sleep 5; done;
+ps | awk '!/ awk / && / root / && / {mcc} / && / --launch-daemon$/' >&2;
+) 2>>${0%/*}/files/boot_err.log) &);
