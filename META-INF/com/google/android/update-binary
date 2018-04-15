@@ -1,20 +1,20 @@
-merge_root#!/sbin/sh
+#!/sbin/sh
 # MC's Charging Controller
-# mcc Installer ( 201804141 )
+# mcc Installer (201804151)
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
-# This file is a part of "MC's Charging Controller ( mcc )".
+# This file is a part of "MC's Charging Controller (mcc)".
 
 # mcc is released under the terms of the GNU GPL v3, as been
 ## published by the Free Software Foundation. And permission
 ## hereby is granted to use, modify or redistribute it maybe
-## partially or entirely under only GPLv3.
+## partially or entirely under GPLv3 only.
 
 # mcc was written in a hope of being useful. And any kind of
 ## WARRANTY is NOT provided. And I can't be held responsible
-## for anything caused byb it.
+## for anything caused by it.
 
 # You should already have received a copy of GPLv3 with mcc,
 ## if not, see <http://www.gnu.org/licenses/>.
@@ -34,7 +34,7 @@ tmp_file=$tmp_dir/tmp_f;
 merge_root=$tmp_dir/img;
 mod_dir=$merge_root/mcc;
 image=${util_funcs%/*/*}/magisk_merge.img;
-mount_point=$(find /sbin/.core/img /magisk -type d -maxdepth 0 | head -n 1);
+mount_point=$(find /sbin/.core/img /magisk -type d -maxdepth 0);
 main_mod_dir=$mount_point/mcc;
 lock_file=$main_mod_dir/lock;
 abort() { echo -e "mcc: error: $1\n"; exit 1; }
@@ -57,28 +57,32 @@ rm -rf $tmp_dir; mkdir -p $merge_root;
 echo -e '-------------------------------------------------------------\n';
 echo "                  MC's Charging Controller                      ";
 echo -e '-------------------------------------------------------------\n\n\n';
-printp 'Checking compatibility ( requires charging ON )...'; sleep 3;
+printp 'Checking compatibility (requires charging ON)...'; sleep 3;
 find /sys/devices /sys/module -type f -name uevent >$tmp_file;
 export no_ver_logs=true; (mcc --enable; sleep 2; mcc --clean) >/dev/null;
 i=1;
 while read uevent; do
-    if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9-]+$' $uevent; then
+    if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $uevent; then
         while read eff_uevent; do
-            if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent || grep -Eq '^DRIVER=.*([Cc]harg(er|ing)|[Bb]att)' $eff_uevent; then
+            if (grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $eff_uevent) || grep -q '^DRIVER=.*[Cc]harger' $eff_uevent; then
                 for ref in ${eff_uevent%/*}/*; do
-                    if test -f $ref && ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
+                    if test -f $ref && ls -l $ref | grep -Eq '^[a-z\-]+w[a-z\-]* '; then
                         case $(cat $ref) in
                             1       ) c_ON=1;        c_OFF=0;        ;;
                             0       ) c_ON=0;        c_OFF=1;        ;;
+                            on      ) c_ON=on;       c_OFF=off;      ;;
+                            off     ) c_ON=off;      c_OFF=on;       ;;
+                            true    ) c_ON=true;     c_OFF=false;    ;;
+                            false   ) c_ON=false;    c_OFF=true;     ;;
                             enable  ) c_ON=enable;   c_OFF=disable;  ;;
                             disable ) c_ON=disable;  c_OFF=enable;   ;;
                             enabled ) c_ON=enabled;  c_OFF=disabled; ;;
                             disabled) c_ON=disabled; c_OFF=enabled;  ;;
                             *       ) continue;                      ;;
                         esac;
-                        echo $c_OFF >$ref; sleep 0.5;
+                        echo $c_OFF >$ref; sleep 1;
                         if ! is_charging; then
-                            echo $c_ON >$ref; sleep 0.5;
+                            echo $c_ON >$ref; sleep 1;
                             if is_charging; then
                                 eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
                                 if [[ $i -eq 3 ]]; then break 3; fi;
@@ -133,7 +137,7 @@ for i in 1 2; do
     switch="$(eval echo \$switch_$i)";
     if [[ ! -z $switch ]]; then set_prop switch_$i "$switch"; fi;
 done;
-if test $(which_installed) -ge 201804141 && old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
+if test $(which_installed) -ge 201804151 && old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
     printp 'Restoring configurations...';
     for prop in auto_shut auto_switch up_threshold down_threshold shut_threshold; do
         set_prop $prop $(get_prop $prop $old_conf);

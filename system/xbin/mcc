@@ -1,16 +1,16 @@
 #!/system/bin/sh
 # MC's Charging Controller
-# mcc Main ( 201804141 )
+# mcc Main (201804151)
 # MCMotherEffin' @ XDA Developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
-# This file is a part of "MC's Charging Controller ( mcc )".
+# This file is a part of "MC's Charging Controller (mcc)".
 
 # mcc is released under the terms of the GNU GPL v3, as been
 ## published by the Free Software Foundation. And permission
 ## hereby is granted to use, modify or redistribute it maybe
-## partially or entirely under only GPLv3.
+## partially or entirely under GPLv3 only.
 
 # mcc was written in a hope of being useful. And any kind of
 ## WARRANTY is NOT provided. And I can't be held responsible
@@ -138,7 +138,7 @@ switch_() {
         elif [[ $(superceded_yet) -lt 10 ]]; then
             set_prop superceded_yet $(($(superceded_yet) + 1));
         else
-            write_ $val_1; sleep 0.5; write_ $val_2;
+            write_ $val_1; sleep 1; write_ $val_2;
         fi;
         sleep 1;
     done;
@@ -158,28 +158,32 @@ batt_level() { get_prop POWER_SUPPLY_CAPACITY $(uevent_f); }
 uevent_f() { get_prop uevent; }
 set_ctrl_refs() {
     for i in 1 2; do set_prop switch_$i dummy_Switch; done;
-    printp 'Reconfiguring internals ( requires charging ON )...'; sleep 3;
+    printp 'Reconfiguring internals (requires charging ON)...'; sleep 3;
     find /sys/devices /sys/module -type f -name uevent >$uevents;
     i=1;
     while read uevent; do
-        if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9-]+$' $uevent; then
+        if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $uevent; then
             set_prop uevent $uevent;
             while read eff_uevent; do
-                if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent || grep -Eq '^DRIVER=.*([Cc]harg(er|ing)|[Bb]att)' $eff_uevent; then
+                if (grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $eff_uevent) || grep -q '^DRIVER=.*[Cc]harger' $eff_uevent; then
                     for ref in ${eff_uevent%/*}/*; do
-                        if test -f $ref && ls -l $ref | grep -Eq '^[a-z-]+w[a-z-]* '; then
+                        if test -f $ref && ls -l $ref | grep -Eq '^[a-z\-]+w[a-z\-]* '; then
                             case $(cat $ref) in
                                 1       ) c_ON=1;        c_OFF=0;        ;;
                                 0       ) c_ON=0;        c_OFF=1;        ;;
+                                on      ) c_ON=on;       c_OFF=off;      ;;
+                                off     ) c_ON=off;      c_OFF=on;       ;;
+                                true    ) c_ON=true;     c_OFF=false;    ;;
+                                false   ) c_ON=false;    c_OFF=true;     ;;
                                 enable  ) c_ON=enable;   c_OFF=disable;  ;;
                                 disable ) c_ON=disable;  c_OFF=enable;   ;;
                                 enabled ) c_ON=enabled;  c_OFF=disabled; ;;
                                 disabled) c_ON=disabled; c_OFF=enabled;  ;;
                                 *       ) continue;                      ;;
                             esac;
-                            echo $c_OFF >$ref; sleep 0.5;
+                            echo $c_OFF >$ref; sleep 1;
                             if ! is_charging; then
-                                echo $c_ON >$ref; sleep 0.5;
+                                echo $c_ON >$ref; sleep 1;
                                 if is_charging; then
                                     set_prop switch_$i "$ref $c_ON $c_OFF";
                                     ((i += 1));
