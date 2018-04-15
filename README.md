@@ -1,12 +1,12 @@
-###### MC's Charging Controller
+###### My Charging Controller
 ###### mcc README (201804151)
-###### MCMotherEffin' @ XDA Developers
+###### JayminSuthar @ xda-developers
 
 ###### Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
 ## Legal
 
-* This file is a part of "MC's Charging Controller ( mcc )".
+* This file is a part of "My Charging Controller (mcc)".
 
 * mcc is released under the terms of the GNU GPL v3, as been
    published by the Free Software Foundation. And permission
@@ -34,17 +34,16 @@
 * A good way of using mcc is from a Terminal. Custom ROMs do
    have one under 'Development settings'
 * mcc does not require a root shell, but having is better so
-* From a Terminal, run 'mcc [ OPTIONS ] [ ARGUMENTS ]', find
-   opts / args below
+* From a Terminal, run 'mcc [OPTIONS] [ARGUMENTS]', find 'em
+   below
 
 ## Options
 
-* [ -f / --force ] [ -s / --switch ] [ -p / --shut ]
-   [ -rt / --default ]
-* [ -ts / --auto-switch ] [ -tp / --auto-shut ]
-* [ -e / --enable ] [ -d / --disable ] [ -rd / --re-daemon ]
-* [ -r / --rm-stats ] [ -c / --clean ] [ -rc / --reset-cfg ]
-* [ -i / --info ] [ -h / --help ]
+* [-f/--force] [-s/--switch] [-p/--shut] [-rt/--default]
+* [-ts/--auto-switch] [-tp/--auto-shut]
+* [-e/--enable] [-d/--disable] [-rd/--re-daemon]
+* []-r/--rm-stats] [-c/--clean] [-rc/--reset-cfg]
+* [-i/--info] [-h/--help]
 
 ## Arguments
 
@@ -68,9 +67,9 @@
 * 'mcc -i'         -->   Show info about current status
 * 'mcc -h'         -->   Show this README page
 
-## Tips / Misc...
+## Tips/Misc...
 
-* The [ -s / --switch ] option automatically figures out the
+* The [-s/--switch] option will automatically figure out the
    other threshold based on the given
 * All mcc tasks are done in background, so you can close the
    Terminal leaving mcc running
@@ -78,16 +77,16 @@
    env variable no_ver_logs=true
 * If you need to pause the daemon, create an emply file with
    path MOUNTPOINT/mcc/lock
-* You must run [ -rc / --reset-cfg ] after flashing a kernel
+* You must run [-rc/--reset-cfg] after flashing a new kernel
 
 ## Remember
 
 * mcc requires Magisk >= 1410 and installs by Magisk Manager
-* mcc Installer / [ -rc / --reset-cfg ] requires charging ON
-   and can take a few minutes
+* mcc Installer/[-rc/--reset-cfg] requires charging ON while
+   taking a few minutes
 * Resetting battery stats may not work for a few old devices
 
-## Support / Discussions
+## Support/Discussions
 
 * Please use the support thread for discussions, bug reports
    and support queries
@@ -95,8 +94,7 @@
 
 ## Thanks
 
-* @topjohnwu, @CCLXIV108, @lvbaal, @papoy1019, and a few did
-   I forgot
+* @topjohnwu, @CCLXIV108, @lvbaal, @papoy1019, and everybody
 
 ## Release Notes
 

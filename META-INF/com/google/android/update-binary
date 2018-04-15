@@ -1,11 +1,11 @@
 #!/sbin/sh
-# MC's Charging Controller
-# mcc Installer (201804151)
-# MCMotherEffin' @ XDA Developers
+# My Charging Controller
+# mcc Install (201804151)
+# JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
-# This file is a part of "MC's Charging Controller (mcc)".
+# This file is a part of "My Charging Controller (mcc)".
 
 # mcc is released under the terms of the GNU GPL v3, as been
 ## published by the Free Software Foundation. And permission
@@ -19,13 +19,13 @@
 # You should already have received a copy of GPLv3 with mcc,
 ## if not, see <http://www.gnu.org/licenses/>.
 
-if grep '^/sbin/sh' </proc/$$/cmdline >/dev/null; then
+if [ ! $BOOTMODE ]; then
     for line in ' ' 'mcc: error: mcc requires Magisk Manager installation' ' '; do
         echo -e "ui_print $line\nui_print" >>/proc/self/fd/$2;
     done;
     exit 1;
 elif ! util_funcs=$(ls /data/adb/magisk/util_functions.sh || ls /data/magisk/util_functions.sh) || test ! $(sed -n 's/^MAGISK_VER_CODE=//p' $util_funcs) -ge 1410; then
-    echo -e 'mcc: error: mcc requires Magisk >= 1410\n'; exit 1;
+    echo -e '\n\nmcc: error: mcc requires Magisk >= 1410\n'; exit 1;
 fi;
 set -x; echo -e '\n';
 zip_file="$3";
@@ -36,17 +36,15 @@ mod_dir=$merge_root/mcc;
 image=${util_funcs%/*/*}/magisk_merge.img;
 mount_point=$(find /sbin/.core/img /magisk -type d -maxdepth 0);
 main_mod_dir=$mount_point/mcc;
-lock_file=$main_mod_dir/lock;
 abort() { echo -e "mcc: error: $1\n"; exit 1; }
 printp() { echo -e "mcc: info: $1\n"; }
 get_prop() { sed -n "s/^$1=//p" $2; }
 set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/files/secure/mcc.conf; }
 is_charging() { grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent; }
-which_installed() { get_prop versionCode $main_mod_dir/module.prop || echo 0; }
-imgsize_test() {
+get_size() {
     e2fsck -n $image | grep -Eo '[0-9]+/[0-9]+ blocks' | awk -F/ "{ print int((\$$1 + 255) / 256) }";
 }
-set_perm_recursive() {
+set_perms() {
     find $1 | while read entry; do
         chown 0:$2 $entry;
         chmod $3 $entry; if [[ -d $entry ]]; then chmod 0755 $entry; fi;
@@ -55,19 +53,19 @@ set_perm_recursive() {
 }
 rm -rf $tmp_dir; mkdir -p $merge_root;
 echo -e '-------------------------------------------------------------\n';
-echo "                  MC's Charging Controller                      ";
+echo "                    MC's Charging Controller                      ";
 echo -e '-------------------------------------------------------------\n\n\n';
 printp 'Checking compatibility (requires charging ON)...'; sleep 3;
-find /sys/devices /sys/module -type f -name uevent >$tmp_file;
+find /sys/devices /sys/module -type f -name uevent | grep -E '[Bb]att|[Cc]harg' >$tmp_file;
 export no_ver_logs=true; (mcc --enable; sleep 2; mcc --clean) >/dev/null;
 i=1;
 while read uevent; do
     if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $uevent; then
         while read eff_uevent; do
-            if (grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $eff_uevent) || grep -q '^DRIVER=.*[Cc]harger' $eff_uevent; then
+            if (grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $eff_uevent) || grep -Eq '^DRIVER=.*[Cc]harg(er|ing)' $eff_uevent; then
                 for ref in ${eff_uevent%/*}/*; do
                     if test -f $ref && ls -l $ref | grep -Eq '^[a-z\-]+w[a-z\-]* '; then
-                        case $(cat $ref) in
+                        case "$(cat $ref)" in
                             1       ) c_ON=1;        c_OFF=0;        ;;
                             0       ) c_ON=0;        c_OFF=1;        ;;
                             on      ) c_ON=on;       c_OFF=off;      ;;
@@ -101,8 +99,8 @@ printp OK; echo -e '\n';
 if [[ -f $image ]]; then
     printp "$image exists";
     e2fsck -pf $image >&2;
-    img_total=$(imgsize_test 2);
-    if [[ $(imgsize_test 1) -eq $img_total ]]; then
+    img_total=$(get_size 2);
+    if [[ $(get_size 1) -eq $img_total ]]; then
         printp "Expanding $image...";
         resize2fs $image $((img_total + 32))M;
     fi;
@@ -117,9 +115,7 @@ for minor in 1 2 3 4 5 6 7; do
     loop_device=/dev/block/loop$minor;
     if [[ ! -b $loop_device ]]; then mknod $loop_device b 7 $minor; fi;
     losetup $loop_device $image;
-    if mount -t ext4 -o rw,noatime $loop_device $merge_root; then
-        break;
-    fi;
+    if mount -t ext4 -o rw,noatime $loop_device $merge_root; then break; fi;
 done;
 if ! grep -q " $merge_root " /proc/mounts; then
     abort "Failed to mount $image";
@@ -135,9 +131,9 @@ fi;
 set_prop uevent $uevent;
 for i in 1 2; do
     switch="$(eval echo \$switch_$i)";
-    if [[ ! -z $switch ]]; then set_prop switch_$i "$switch"; fi;
+    if [[ ! -z "$switch" ]]; then set_prop switch_$i "$switch"; fi;
 done;
-if test $(which_installed) -ge 201804151 && old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
+if test $(get_prop versionCode $main_mod_dir/module.prop || echo 0) -ge 201804151 && old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
     printp 'Restoring configurations...';
     for prop in auto_shut auto_switch up_threshold down_threshold shut_threshold; do
         set_prop $prop $(get_prop $prop $old_conf);
@@ -146,8 +142,7 @@ fi;
 touch $mod_dir/auto_mount $main_mod_dir/update;
 cp -f $mod_dir/module.prop $main_mod_dir/;
 printp 'Setting permissions...';
-set_perm_recursive $mod_dir    0 0644;
-set_perm_recursive $bin_dir 2000 0755;
+set_perms $mod_dir 0 0644; set_perms $bin_dir 2000 0755;
 umount $merge_root; losetup -d $loop_device;
 rm -rf $tmp_dir;
 printp Done; echo -e '\n';

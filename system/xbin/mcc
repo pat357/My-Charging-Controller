@@ -1,11 +1,11 @@
 #!/system/bin/sh
-# MC's Charging Controller
+# My Charging Controller
 # mcc Main (201804151)
-# MCMotherEffin' @ XDA Developers
+# JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
-# This file is a part of "MC's Charging Controller (mcc)".
+# This file is a part of "My Charging Controller (mcc)".
 
 # mcc is released under the terms of the GNU GPL v3, as been
 ## published by the Free Software Foundation. And permission
@@ -38,26 +38,24 @@ export PATH=$mod_dir/busybox:$PATH;
 if (! busybox | grep 'topjohnwu ' || ! which awk) >/dev/null; then
     echo -e 'mcc: error: Failed to set BusyBox up\n'; exit;
 fi;
-abort() { echo -e "mcc: error: $1" >&2; echo -e "mcc: error: $1\n"; exit; }
+abort() { echo "mcc: error: $1" >&2; echo -e "mcc: error: $1\n"; exit; }
 printp() { echo -e "mcc: info: $1\n"; }
 warn() { echo -e "mcc: warning: $1\n"; }
-exit_help() { head -99 $mod_dir/docs/README.md; exit; }
+exxit_() { head -99 $mod_dir/docs/README.md; exit; }
 get_prop() { sed -n "s/^$1=//p" $2 $config; }
 set_prop() { sed -i "s|^$1=.*|$1=$2|g" $config; }
 get_cpid() {
     for pid in $(ps | awk "!/ awk / && / $1$/{ print \$1 }"); do
-        if [[ $(awk '/^PPid: /{ print $2 }' /proc/$pid/status) -eq $$ ]]; then
-            echo $pid; break;
-        fi;
-        unset pid;
+        case $(awk '/^PPid: /{ print $2 }' /proc/$pid/status) in
+            $$) echo $pid; break; ;;
+        esac;
     done;
 }
 is_charging() {
-    if [[ $1 == cur ]]; then
-        test $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0;
-    else
-        grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $(uevent_f);
-    fi;
+    case $1 in
+        cur) test $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0; ;;
+        *  ) grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $(uevent_f);     ;;
+    esac;
 }
 is_runningd() {
     ps | awk '!/ awk / && / root / && / {mcc} / && / --launch-daemon$/' | grep -vq "^ *$$ ";
@@ -109,10 +107,12 @@ charge_init() {
     if ps | awk '!/ awk / && / root / && / {mcc} / && / (--enable|-e|--disable|-d) ?[0-9smh%]*$' | grep -vq "^ *$$ "; then
         abort 'Another session is already running';
     fi;
-    set_prop superceded_yet 0; touch $lock_file;
+    if [[ ! -f $lock_file ]]; then touched=true; fi;
+    re_count; touch $lock_file;
     switch_ $turn_1;
 }
 charge_loop() { while eval $1; do switch_ $turn_1; sleep 1; done; }
+re_count() { set_prop superceded_yet 0; }
 write_() {
     for i in 1 2; do
         switch=$(get_prop switch_$i | awk '{ print $1 }');
@@ -131,10 +131,7 @@ switch_() {
     esac;
     for i in 1 2 3 4 5 6 7 8 9 10; do
         if eval $test; then
-            if [[ $(superceded_yet) -eq 10 ]]; then
-                set_prop superceded_yet 0;
-            fi;
-            break;
+            if [[ $(superceded_yet) -eq 10 ]]; then re_count; fi; break;
         elif [[ $(superceded_yet) -lt 10 ]]; then
             set_prop superceded_yet $(($(superceded_yet) + 1));
         else
@@ -159,16 +156,16 @@ uevent_f() { get_prop uevent; }
 set_ctrl_refs() {
     for i in 1 2; do set_prop switch_$i dummy_Switch; done;
     printp 'Reconfiguring internals (requires charging ON)...'; sleep 3;
-    find /sys/devices /sys/module -type f -name uevent >$uevents;
+    find /sys/devices /sys/module -type f -name uevent | grep -E '[Bb]att|[Cc]harg' >$uevents;
     i=1;
     while read uevent; do
         if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $uevent; then
             set_prop uevent $uevent;
             while read eff_uevent; do
-                if (grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $eff_uevent) || grep -q '^DRIVER=.*[Cc]harger' $eff_uevent; then
+                if (grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $eff_uevent) || grep -Eq '^DRIVER=.*[Cc]harg(er|ing)' $eff_uevent; then
                     for ref in ${eff_uevent%/*}/*; do
                         if test -f $ref && ls -l $ref | grep -Eq '^[a-z\-]+w[a-z\-]* '; then
-                            case $(cat $ref) in
+                            case "$(cat $ref)" in
                                 1       ) c_ON=1;        c_OFF=0;        ;;
                                 0       ) c_ON=0;        c_OFF=1;        ;;
                                 on      ) c_ON=on;       c_OFF=off;      ;;
@@ -205,7 +202,7 @@ set_ctrl_refs() {
     fi;
     printp Done;
 }
-charge() {
+c_session() {
     case $1 in
         enable ) turn_1=ON;  turn_2=OFF; text=enabled;  ;;
         disable) turn_1=OFF; turn_2=ON;  text=disabled; ;;
@@ -226,7 +223,7 @@ charge() {
         else
             abort 'Invalid argument format';
         fi;
-        set_prop superceded_yet 0; rm -f $lock_file;
+        re_count; if [[ $touched ]]; then rm -f $lock_file; fi;
         switch_ $turn_2;
         printp 'Session ended';
     else
@@ -276,8 +273,8 @@ case $1 in
         if ! $(auto_switch); then test_refs; fi;
         toggle auto_switch 'Auto switch';
     ;;
-    -e|--enable)  test_refs; charge enable $2;  ;;
-    -d|--disable) test_refs; charge disable $2; ;;
+    -e|--enable ) test_refs; c_session enable  $2; ;;
+    -d|--disable) test_refs; c_session disable $2; ;;
     -rd|--re-daemon)
         if ! $(auto_shut) && ! $(auto_switch); then
             abort 'Neither auto switch or auto shut is ON';
@@ -315,8 +312,8 @@ case $1 in
     ;;
     -c|--clean)
         kill $(ps | awk "!/ awk / && / {mcc} / && !/^ *$$ /{ print \$1 }" | tr '\n' ' ');
-        set_prop superceded_yet 0;
-        rm -f $files_dir/* $mod_dir/lock;
+        re_count;
+        rm -f $files_dir/* $lock_file;
         printp 'Everything cleaned up';
     ;;
     -rc|--reset-cfg) set_ctrl_refs; ;;
@@ -334,14 +331,14 @@ case $1 in
         status=OFF; if $(auto_switch); then status=ON; fi;
         echo "-- automatic switching: $status";
         status=OFF; if $(auto_shut); then status=ON; fi;
-        echo "-- automatic power-off: $status\n";
+        echo -e "-- automatic power-off: $status\n";
         status='Not running'; if is_runningd; then status=Running; fi;
         echo -e "- Daemon status: $status\n";
     ;;
-    -h|--help) exit_help; ;;
+    -h|--help) exxit_; ;;
     *)
         warn 'Invalid argument(s)'; sleep 2;
-        exit_help;
+        exxit_;
     ;;
 esac;
 ) 2>$err_log) &);

@@ -1,11 +1,11 @@
 #!/system/bin/sh
-# MC's Charging Controller
+# My Charging Controller
 # mcc Boot 1st (201804151)
-# MCMotherEffin' @ XDA Developers
+# JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
 
-# This file is a part of "MC's Charging Controller (mcc)".
+# This file is a part of "My Charging Controller (mcc)".
 
 # mcc is released under the terms of the GNU GPL v3, as been
 ## published by the Free Software Foundation. And permission

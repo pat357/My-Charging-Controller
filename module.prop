@@ -1,8 +1,8 @@
 id=mcc
-name=MC's Charging Controller
-version=2.0
-versionCode=201804141
-author=Jaymin Suthar @MCMotherEffin'
+name=My Charging Controller
+version=2.0.beta
+versionCode=201804151
+author=Jaymin Suthar
 description=mcc lets you control when to enable / disable charging in a batter way
 minMagisk=1410
 template=1410
