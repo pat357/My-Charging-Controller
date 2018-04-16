@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # My Charging Controller
-# mcc Boot 2nd (201804161)
+# mcc Boot 2 (201804161)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -24,16 +24,18 @@ mod_dir=${0%/*};
 files_dir=$mod_dir/files;
 mcc_bin=$mod_dir/busybox;
 busybox=$mcc_bin/busybox;
+
 set -x 2>>$files_dir/boot.log;
-rm -rf $mcc_bin $mod_dir/lock; mkdir $mcc_bin;
+
+rm -rf $mcc_bin $mod_dir/lock $files_dir/yield_s; mkdir $mcc_bin;
+
 cp -a $(which busybox) $mcc_bin/;
 $busybox --install $mcc_bin/;
 chmod 0755 $busybox; chown 0:2000 $busybox;
+
 sleep 120;
 chmod 0755 $(ls /system/xbin/mcc || ls /system/bin/mcc);
-for i in 1 2 3 4 5 6 7 8 9 10; do
-    no_ver_logs=true mcc --launch-daemon;
-    sleep 2;
-done;
+no_ver_logs=true mcc --launch-daemon </dev/null >/dev/null 2>&1;
+
 ps | awk '!/ awk / && / {mcc} / && / --launch-daemon$/' >&2;
 ) 2>>${0%/*}/files/boot_err.log) &);
