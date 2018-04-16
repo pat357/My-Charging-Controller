@@ -40,7 +40,7 @@ fi;
 abort() { echo "mcc: error: $1" >&2; echo -e "mcc: error: $1\n"; exit; }
 printp() { echo -e "mcc: info: $1\n"; }
 warn() { echo -e "mcc: warning: $1\n"; }
-exxit_() { head -99 $mod_dir/docs/README.md; exit; }
+exxit_() { head -101 $mod_dir/docs/README.md; exit; }
 get_prop() { sed -n "s/^$1=//p" $2 $config; }
 set_prop() { sed -i "s|^$1=.*|$1=$2|g" $config; }
 get_cpid() {
@@ -57,7 +57,7 @@ is_charging() {
     esac;
 }
 is_runningd() {
-    ps | awk '!/ awk / && / root / && / {mcc} / && / --launch-daemon$/' | grep -vq "^ *$$ ";
+    ps | awk '!/ awk / && / {mcc} / && / --launch-daemon$/' | grep -vq "^ *$$ ";
 }
 test_bound() {
     if [[ $1 -le 0 || $1 -ge 100 ]]; then
@@ -75,13 +75,9 @@ test_diff() {
         abort 'Thresholds must keep 5 levels difference';
     fi;
 }
-test_refs() {
-    if [[ ! -f $(uevent_f) || ! -f $(get_prop switch_1 | awk '{ print $1 }') ]]; then
-        abort 'mcc internals are not properly configured';
-    fi;
-}
 test_boundaries() {
-    if [[ ( (! -z $2 && ($1 -lt 15 || $2 -lt 15 || $1 -gt 85 || $2 -gt 85)) || ($1 -lt 20 || $1 -gt 85)) && ! $enforce ]]; then
+    if [[ ( (! -z $2 && ($1 -lt 15 || $2 -lt 15 || $1 -gt 85 || $2 -gt 85)) || ($1 -lt 20 || $1 -gt 85)) && \
+          ! $enforce ]]; then
         abort 'Threshold(s) must belong to 15 - 85';
     elif [[ $1 -ge 25 ]]; then
         d=$(($1 - 10));
@@ -99,10 +95,11 @@ test_boundaries() {
     printp 'New values saved';
 }
 charge_init() {
-    if ps | awk '!/ awk / && / root / && / {mcc} / && / (--enable|-e|--disable|-d) ?[0-9smh%]*$' | grep -vq "^ *$$ "; then
+    if ps | awk '!/ awk / && / {mcc} / && / (--enable|-e|--disable|-d) ?' | grep -vq "^ *$$ "; then
         abort 'Another session is already running';
+    elif [[ ! -f $lock_file ]]; then
+        touched=true;
     fi;
-    if [[ ! -f $lock_file ]]; then touched=true; fi;
     re_count; touch $lock_file;
     switch_ $turn_1;
 }
@@ -121,22 +118,23 @@ write_() {
 }
 switch_() {
     case $1 in
-        ON ) test='is_charging';   val_1=OFF; val_2=ON;  ;;
-        OFF) test='! is_charging'; val_1=ON;  val_2=OFF; ;;
+        ON ) test='! is_charging'; val_1=OFF; val_2=ON;  ;;
+        OFF) test='is_charging';   val_1=ON;  val_2=OFF; ;;
     esac;
-    ## yet to be implemented
-    ##for i in 1 2 3 4 5 6 7 8 9 10; do
-    ##    if ! eval $test; then
-    ##        if eval "$test cur"; then
-    ##            if [[ $(superceded_yet) -eq 10 ]]; then re_count; fi; break;
-    ##        fi;
-    ##    elif [[ $(superceded_yet) -lt 10 ]]; then
-    ##        set_prop superceded_yet $(($(superceded_yet) + 1));
-    ##    else
-    ##        write_ $val_1; sleep 1; write_ $val_2;
-    ##    fi;
-    ##    sleep 1;
-    ##done;
+    for i in 1 2 3 4 5 6 7 8 9 10 11; do
+        if eval $test; then
+            write_ $val_1; sleep 1; $val_2; unset switched;
+        elif test ! $switched && eval "$test cur"; then
+            if [[ $(superceded_yet) -lt 10 ]]; then
+                set_prop superceded_yet $(($(superceded_yet) + 1));
+            else
+                write_ $val_1; sleep 1; $val_2;
+            fi;
+        else
+            switched=true; re_count; break;
+        fi;
+        sleep 1;
+    done;
 }
 toggle() {
     value=true; status=ON; if $($1); then value=false; status=OFF; fi;
@@ -179,6 +177,9 @@ c_session() {
         charge_loop ':';
     fi;
 }
+if [[ ! -f $(uevent_f) || ! -f $(get_prop switch_1 | awk '{ print $1 }') ]]; then
+    abort 'mcc internals are not properly configured';
+fi;
 case $1 in -f|--force) enforce=true; shift; ;; esac;
 case $1 in
     -p|--shut)
@@ -215,20 +216,17 @@ case $1 in
         printp 'All thresholds are reverted to defaults';
     ;;
     -tp|--auto-shut)
-        if ! $(auto_shut); then test_refs; fi;
         toggle auto_shut 'Auto shut';
     ;;
     -ts|--auto-switch)
-        if ! $(auto_switch); then test_refs; fi;
         toggle auto_switch 'Auto switch';
     ;;
-    -e|--enable ) test_refs; c_session enable  $2; ;;
-    -d|--disable) test_refs; c_session disable $2; ;;
+    -e|--enable ) c_session enable  $2; ;;
+    -d|--disable) c_session disable $2; ;;
     -rd|--re-daemon)
         if ! $(auto_shut) && ! $(auto_switch); then
             abort 'Neither auto switch or auto shut is ON';
         fi;
-        test_refs;
         if is_runningd; then abort 'mcc daemon is already running'; fi;
         no_ver_logs=true mcc --launch-daemon </dev/null >/dev/null 2>&1;
         if ! is_runningd; then abort 'Failed to launch the daemon'; fi;
@@ -236,7 +234,6 @@ case $1 in
     ;;
     --launch-daemon)
         if is_runningd; then abort 'mcc daemon is already running'; fi;
-        test_refs;
         while $(auto_shut) || $(auto_switch); do
             if [[ ! -f $lock_file ]]; then
                 if $(auto_shut); then
@@ -267,7 +264,6 @@ case $1 in
         printp 'Everything cleaned up';
     ;;
     -i|--info)
-        test_refs;
         echo -e '- Battery status\n';
         echo "-- battery level: $(batt_level)";
         echo "-- battery health: $(get_prop POWER_SUPPLY_HEALTH $(uevent_f))";

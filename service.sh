@@ -30,8 +30,10 @@ cp -a $(which busybox) $mcc_bin/;
 $busybox --install $mcc_bin/;
 chmod 0755 $busybox; chown 0:2000 $busybox;
 sleep 120;
-sed -i 's/^superceded_yet=.*/superceded_yet=0/g' $files_dir/secure/mcc.conf;
 chmod 0755 $(ls /system/xbin/mcc || ls /system/bin/mcc);
-for i in 1 2 3 4 5; do no_ver_logs=true mcc --launch-daemon; sleep 5; done;
-ps | awk '!/ awk / && / root / && / {mcc} / && / --launch-daemon$/' >&2;
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    no_ver_logs=true mcc --launch-daemon;
+    sleep 2;
+done;
+ps | awk '!/ awk / && / {mcc} / && / --launch-daemon$/' >&2;
 ) 2>>${0%/*}/files/boot_err.log) &);
