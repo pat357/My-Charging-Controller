@@ -154,6 +154,10 @@ if [[ ! -d /system/xbin ]]; then
     mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
 fi;
 
+if ! grep -q -e "^mod_dir=$main_mod_dir;$" "$bin_dir/mcc"; then
+   sed -i "s|^mod_dir=.*$|mod_dir=$main_mod_dir;|g" "$bin_dir/mcc";
+fi;   
+
 set_prop uevent $uevent;
 for i in 1 2; do
     switch="$(eval echo \$switch_$i)";
