@@ -1,5 +1,5 @@
 ###### My Charging Controller
-###### mcc README (201804151)
+###### mcc README (201804161)
 ###### JayminSuthar @ xda-developers
 
 ###### Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -34,7 +34,7 @@
 * A good way of using mcc is from a Terminal. Custom ROMs do
    have one under 'Development settings'
 * mcc does not require a root shell, but having is better so
-* From a Terminal, run 'mcc [OPTIONS] [ARGUMENTS]', find 'em
+* From a Terminal, run 'mcc [OPTIONS] [ARGUMENTS]', see them
    below
 
 ## Options
@@ -42,7 +42,7 @@
 * [-f/--force] [-s/--switch] [-p/--shut] [-rt/--default]
 * [-ts/--auto-switch] [-tp/--auto-shut]
 * [-e/--enable] [-d/--disable] [-rd/--re-daemon]
-* []-r/--rm-stats] [-c/--clean] [-rc/--reset-cfg]
+* [-r/--rm-stats] [-c/--clean]
 * [-i/--info] [-h/--help]
 
 ## Arguments
@@ -63,7 +63,6 @@
 * 'mcc -rd'        -->   Launch the daemon unless running
 * 'mcc -r'         -->   Reset battery statistics
 * 'mcc -c'         -->   Clean mcc processes and files
-* 'mcc -rc'        -->   Reconfigure mcc internals
 * 'mcc -i'         -->   Show info about current status
 * 'mcc -h'         -->   Show this README page
 
@@ -77,28 +76,33 @@
    env variable no_ver_logs=true
 * If you need to pause the daemon, create an emply file with
    path MOUNTPOINT/mcc/lock
-* You must run [-rc/--reset-cfg] after flashing a new kernel
+* If you see 'mcc internals are not properly configured', do
+   clean install mcc
 
 ## Remember
 
-* mcc requires Magisk >= 1410 and installs by Magisk Manager
-* mcc Installer/[-rc/--reset-cfg] requires charging ON while
-   taking a few minutes
+* mcc requires Magisk >= 1400 and installs by Magisk Manager
+* mcc Installer requires charging ON and can take a few mins
 * Resetting battery stats may not work for a few old devices
 
 ## Support/Discussions
 
 * Please use the support thread for discussions, bug reports
-   and support queries
+   and other queries
 * Please post details and do mention me whenever is required
 
 ## Thanks
 
 * @topjohnwu, @CCLXIV108, @lvbaal, @papoy1019, and everybody
 
+## Encourage Me
+
+* Please hit 'Thanks' on the support thread if you like this
+   Project as it took me painful hours creating it
+
 ## Release Notes
 
 #### 2.0
 
-* This version has been written from scratch, please perform
+* This version is re-written from scratch, so please perform
    a CLEAN INSTALLATION.
