@@ -1,6 +1,6 @@
 #!/sbin/sh
 # My Charging Controller
-# mcc Install (201804161)
+# mcc Install (201804171)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -24,14 +24,11 @@ if [ ! $BOOTMODE ]; then
         echo -e "ui_print $line\nui_print" >>/proc/self/fd/$2;
     done;
     exit 1;
-
 elif ! util_funcs=$(ls /data/adb/magisk/util_functions.sh || ls /data/magisk/util_functions.sh) \
     || test ! $(sed -n 's/^MAGISK_VER_CODE=//p' $util_funcs) -ge 1400; then
     echo -e '\n\nmcc: error: mcc requires Magisk >= 1400\n'; exit 1;
 fi;
-
 set -x; echo -e '\n';
-
 zip_file="$3";
 tmp_dir=/dev/mcc_tmp;
 tmp_file=$tmp_dir/tmp_f;
@@ -41,49 +38,37 @@ bin_dir=$mod_dir/system/xbin;
 image=${util_funcs%/*/*}/magisk_merge.img;
 mount_point=$(find /sbin/.core/img /magisk -type d -maxdepth 0);
 main_mod_dir=$mount_point/mcc;
-
 abort() { echo -e "mcc: error: $1\n"; exit 1; }
 printp() { echo -e "mcc: info: $1\n"; }
-
 get_prop() { sed -n "s/^$1=//p" $2; }
 set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/files/secure/mcc.conf; }
-
 is_charging() { grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent; }
-
 get_size() {
     e2fsck -n $image | grep -Eo '[0-9]+/[0-9]+ blocks' | awk -F/ "{ print int((\$$1 + 255) / 256) }";
 }
-
 set_perms() {
     find $1 | while read entry; do
         chown 0:$2 $entry;
-        chmod $3 $entry; if [[ -d $entry ]]; then chmod 0755 $entry; fi;
+        chmod $3 $entry; if [ -d $entry ]; then chmod 0755 $entry; fi;
         chcon u:object_r:system_file:s0 $entry;
     done;
 }
-
 rm -rf $tmp_dir; mkdir -p $merge_root;
-
 echo -e '-------------------------------------------------------------\n';
 echo "                    MC's Charging Controller                      ";
 echo -e '-------------------------------------------------------------\n\n\n';
-
 printp 'Checking compatibility (requires charging ON)...'; sleep 3;
+no_ver_logs=true mcc --clean >/dev/null;
 find /sys/devices /sys/module -type f -name uevent >$tmp_file;
-
-i=1;
 while read uevent; do
     if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent \
     && grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent \
     && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $uevent; then
-
         while read eff_uevent; do
             if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent \
-            || grep -q '^DRIVER=.*[Cc]harger' $eff_uevent; then
-
+            || grep -Eq '^DRIVER=.*[Cc]harg(er|ing)' $eff_uevent; then
                 for ref in ${eff_uevent%/*}/*; do
-                    if test -f $ref && ls -l $ref | grep -E '^[a-z\-]+w[a-z\-]* ' | grep -vq ' root '; then
-
+                    if test -f $ref && ls -l $ref | grep -Eq ' radio | system '; then
                         case "$(cat $ref)" in
                             1       ) c_ON=1;        c_OFF=0;        ;;
                             0       ) c_ON=0;        c_OFF=1;        ;;
@@ -97,85 +82,66 @@ while read uevent; do
                             disabled) c_ON=disabled; c_OFF=enabled;  ;;
                             *       ) continue;                      ;;
                         esac;
-
                         echo $c_OFF >$ref; sleep 1;
                         if ! is_charging; then
                             echo $c_ON >$ref; sleep 1;
                             if is_charging; then
-                                eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
-                                if [[ $i -eq 3 ]]; then break 3; fi;
+                                switch="$ref $c_ON $c_OFF"; break 3;
                             fi;
                         fi;
                         echo $c_ON >$ref;
                     fi;
                 done;
-                if [[ $i -gt 1 ]]; then break 2; fi;
             fi;
         done <$tmp_file;
     fi;
 done <$tmp_file;
-if [[ $i -eq 1 ]]; then abort 'Failed the check'; fi;
-
+if [ -z "$switch" ]; then abort 'Failed the check'; fi;
 printp OK; echo -e '\n';
-
-if [[ -f $image ]]; then
+if [ -f $image ]; then
     printp "$image exists";
     e2fsck -pf $image >&2;
     img_total=$(get_size 2);
-    if [[ $(get_size 1) -eq $img_total ]]; then
+    if [ $(get_size 1) -eq $img_total ]; then
         printp "Expanding $image...";
         resize2fs $image $((img_total + 32))M;
     fi;
-
 else
     printp "Creating $image...";
     if ! make_ext4fs -l 64M $image >&2; then
         /system/bin/mke2fs -t ext4 $image 64M >&2;
     fi;
 fi;
-
 printp "Mounting $image...";
 for minor in 1 2 3 4 5 6 7; do
     loop_device=/dev/block/loop$minor;
-    if [[ ! -b $loop_device ]]; then mknod $loop_device b 7 $minor; fi;
+    mknod $loop_device b 7 $minor;
     losetup $loop_device $image;
     if mount -t ext4 -o rw,noatime $loop_device $merge_root; then break; fi;
 done;
 if ! grep -q " $merge_root " /proc/mounts; then
     abort "Failed to mount $image";
 fi;
-
 rm -rf $mod_dir; mkdir -p $mod_dir/docs $main_mod_dir;
-
 printp 'Extracting mcc files...';
 unzip -o "$zip_file" 'system/*' 'files/*' post-fs-data.sh service.sh module.prop -d $mod_dir >&2;
 unzip -o "$zip_file" COPYING README.md -d $mod_dir/docs >&2;
-if [[ ! -d /system/xbin ]]; then
+if [ ! -d /system/xbin ]; then
     mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
 fi;
-
-set_prop uevent $uevent;
-for i in 1 2; do
-    switch="$(eval echo \$switch_$i)";
-    if [[ ! -z "$switch" ]]; then set_prop switch_$i "$switch"; fi;
-done;
-
-if test $(get_prop versionCode $main_mod_dir/module.prop || echo 0) -ge 201804161 \
+set_prop uevent $uevent; set_prop switch "$switch";
+if test $(get_prop versionCode $main_mod_dir/module.prop || echo 0) -ge 201804171 \
 && old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
     printp 'Restoring configurations...';
     for prop in auto_shut auto_switch up_threshold down_threshold shut_threshold; do
         set_prop $prop $(get_prop $prop $old_conf);
     done;
 fi;
-
 touch $mod_dir/auto_mount $main_mod_dir/update;
 cp -f $mod_dir/module.prop $main_mod_dir/;
-
 printp 'Setting permissions...';
 set_perms $mod_dir 0 0644; set_perms $bin_dir 2000 0755;
-
 umount $merge_root; losetup -d $loop_device;
 rm -rf $tmp_dir;
-
 printp Done; echo -e '\n';
 exit 0;

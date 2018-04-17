@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # My Charging Controller
-# mcc Boot 1 (201804161)
+# mcc Boot 1 (201804171)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -19,16 +19,13 @@
 # You should already have received a copy of GPLv3 with mcc,
 ## if not, see <http://www.gnu.org/licenses/>.
 
-( ( (
+(
 mod_dir=${0%/*};
 mcc_main=$(ls $mod_dir/system/xbin/mcc || ls $mod_dir/system/bin/mcc);
-
 set -x 2>$mod_dir/files/boot.log;
-
 chmod 0644 $mcc_main;
 if ! sed -i "s|^mod_dir=.*|mod_dir=$mod_dir;|g" $mcc_main; then
     cat $mcc_main | sed "s|^mod_dir=.*|mod_dir=$mod_dir;|g" | tee $mcc_main;
 fi;
-
 grep '^mod_dir=' $mcc_main >&2;
-) 2>${0%/*}/files/boot_err.log) &);
+) 2>${0%/*}/files/boot_err.log &
