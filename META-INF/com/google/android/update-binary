@@ -1,6 +1,6 @@
 #!/sbin/sh
 # My Charging Controller
-# mcc Install (201804171)
+# mcc Install (201804181)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -57,18 +57,22 @@ rm -rf $tmp_dir; mkdir -p $merge_root;
 echo -e '-------------------------------------------------------------\n';
 echo "                    MC's Charging Controller                      ";
 echo -e '-------------------------------------------------------------\n\n\n';
-printp 'Checking compatibility (requires charging ON)...'; sleep 3;
-no_ver_logs=true mcc --clean >/dev/null;
-find /sys/devices /sys/module -type f -name uevent >$tmp_file;
+(export no_ver_logs=true; mcc --enable; sleep 6; mcc --clean) >/dev/null &
+find /sys/devices /sys/module -type f -name uevent >$tmp_file &
+printp 'Checking compatibility (requires charging ON)...'; sleep 6;
+wait; i=1;
 while read uevent; do
+    chmod u+r $uevent;
     if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent \
     && grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent \
     && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $uevent; then
         while read eff_uevent; do
+            chmod u+r $eff_uevent;
             if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent \
             || grep -Eq '^DRIVER=.*[Cc]harg(er|ing)' $eff_uevent; then
                 for ref in ${eff_uevent%/*}/*; do
-                    if test -f $ref && ls -l $ref | grep -Eq ' radio | system '; then
+                    if test -f $ref && chmod u+r $ref && ls -l $ref | grep -Eq '^\-[rx\-]+w[rwx\-]* ' \
+                    && (test ! -f /cache/mcc_noo || ls -l $ref | grep -Eq ' system | radio '); then
                         case "$(cat $ref)" in
                             1       ) c_ON=1;        c_OFF=0;        ;;
                             0       ) c_ON=0;        c_OFF=1;        ;;
@@ -86,17 +90,19 @@ while read uevent; do
                         if ! is_charging; then
                             echo $c_ON >$ref; sleep 1;
                             if is_charging; then
-                                switch="$ref $c_ON $c_OFF"; break 3;
+                                eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
+                                if [ $i -eq 3 ]; then break 3; fi;
                             fi;
                         fi;
                         echo $c_ON >$ref;
                     fi;
                 done;
+                if [ $i -gt 1 ]; then break 2; fi;
             fi;
         done <$tmp_file;
     fi;
 done <$tmp_file;
-if [ -z "$switch" ]; then abort 'Failed the check'; fi;
+if [ $i -eq 1 ]; then abort 'Failed the check'; fi;
 printp OK; echo -e '\n';
 if [ -f $image ]; then
     printp "$image exists";
@@ -129,7 +135,11 @@ unzip -o "$zip_file" COPYING README.md -d $mod_dir/docs >&2;
 if [ ! -d /system/xbin ]; then
     mv $bin_dir $mod_dir/system/bin; bin_dir=$mod_dir/system/bin;
 fi;
-set_prop uevent $uevent; set_prop switch "$switch";
+set_prop uevent $uevent;
+for i in 1 2; do
+    switch="$(eval echo \$switch_$i)";
+    if [ ! -z "$switch" ]; then set_prop switch_$i "$switch"; fi;
+done;
 if test $(get_prop versionCode $main_mod_dir/module.prop || echo 0) -ge 201804171 \
 && old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
     printp 'Restoring configurations...';

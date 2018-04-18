@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # My Charging Controller
-# mcc Main (201804171)
+# mcc Main (201804181)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -40,13 +40,14 @@ if (! busybox | grep 'topjohnwu ' || ! which awk) >/dev/null; then
 fi;
 abort() { echo "mcc: error: $1" >&2; echo -e "mcc: error: $1\n"; exit; }
 printp() { echo -e "mcc: info: $1\n"; }
-exxit_() { head -100 $mod_dir/docs/README.md; exit; }
+exxit_() { head -102 $mod_dir/docs/README.md; exit; }
 get_prop() { sed -n "s/^$1=//p" $2 $config; }
 set_prop() { sed -i "s|^$1=.*|$1=$2|g" $config; }
 is_runningd() {
-    ps | grep -v ' grep ' | grep ' {mcc} ' | grep -q ' --launch-daemon$';
+    test "$(ps | awk '!/ awk / && / {mcc} / && / \-\-launch\-daemon$/')";
 }
 is_charging() {
+    chmod u+r $(uevent_f);
     case $1 in
         cur) test $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0; ;;
         *  ) grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $(uevent_f);     ;;
@@ -73,7 +74,7 @@ test_boundaries() {
       || ([ $1 -gt 85 ] || [ $2 -lt 20 ])) \
        && [ ! $enforce ]; then
         abort 'Threshold(s) must belong to 15 - 85';
-    elif [ ! -z "$2" ]; then
+    elif [ -z "$2" ]; then
         if [ $1 -ge 25 ]; then
             d=$(($1 - 10));
         elif [ $1 -ge 20 ]; then
@@ -102,14 +103,17 @@ charge_init() {
 charge_loop() { while eval $1; do switch_ $turn_1; sleep 1; done; }
 re_count() { set_prop superceded_yet 0; }
 write_switch() {
-    switch_p $val_1 >$(switch_p 1);
-    sleep 1;
-    switch_p $val_2 >$(switch_p 1);
+    for i in 1 2; do
+        switch=$(switch_p $i 1);
+        if [ -f $switch ]; then
+            switch_p $i $val_1 >$switch; sleep 1; switch_p $i $val_2 >$switch;
+        fi;
+    done;
 }
 switch_() {
     case $1 in
-        ON ) test='! is_charging'; val_1=3; val_2=2;  ;;
-        OFF) test='is_charging';   val_1=2; val_2=3; ;;
+        ON ) test='! is_charging'; val_1=3; val_2=2; ;;
+        OFF)  test='is_charging';  val_1=2; val_2=3; ;;
     esac;
     for i in 1 2 3 4 5 6; do
         if eval $test; then
@@ -126,6 +130,11 @@ switch_() {
         sleep 1;
     done;
 }
+clean_up() {
+    re_count;
+    rm -f $files_dir/* $lock_file;
+    kill $(ps | awk '!/ awk / && / {mcc} /{ print $1 }' | tr '\n' ' ');
+}
 toggle() {
     value=true; status=ON; if $($1); then value=false; status=OFF; fi;
     set_prop $1 $value;
@@ -137,23 +146,29 @@ up_threshold() { get_prop up_threshold; }
 down_threshold() { get_prop down_threshold; }
 shut_threshold() { get_prop shut_threshold; }
 superceded_yet() { get_prop superceded_yet; }
-batt_level() { get_prop POWER_SUPPLY_CAPACITY $(uevent_f); }
-switch_p() { get_prop switch | awk "{ print \$$1 }"; }
+batt_level() {
+    chmod u+r $(uevent_f); get_prop POWER_SUPPLY_CAPACITY $(uevent_f);
+}
+switch_p() { get_prop switch_$1 | awk "{ print \$$2 }"; }
 uevent_f() { get_prop uevent; }
 set_ctrl_refs() {
     set_prop switch dummy_Switch;
+    find /sys/devices /sys/module -type f -name uevent >$uevents &
     printp 'Reconfiguring internals (requires charging ON)...'; sleep 3;
-    find /sys/devices /sys/module -type f -name uevent >$uevents;
+    wait; i=1;
     while read uevent; do
+        chmod u+r $uevent;
         if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent \
         && grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent \
         && grep -Eq '^POWER_SUPPLY_CURRENT_NOW=[0-9\-]+$' $uevent; then
             set_prop uevent $uevent;
             while read eff_uevent; do
+                chmod u+r $eff_uevent;
                 if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent \
                 || grep -Eq '^DRIVER=.*[Cc]harg(er|ing)' $eff_uevent; then
                     for ref in ${eff_uevent%/*}/*; do
-                        if test -f $ref && ls -l $ref | grep -Eq ' radio | system '; then
+                        if test -f $ref && chmod u+r $ref && ls -l $ref | grep -Eq '^\-[rx\-]+w[rwx\-]* ' \
+                        && (test ! -f /cache/mcc_noo || ls -l $ref | grep -Eq ' system | radio '); then
                             case "$(cat $ref)" in
                                 1       ) c_ON=1;        c_OFF=0;        ;;
                                 0       ) c_ON=0;        c_OFF=1;        ;;
@@ -171,18 +186,20 @@ set_ctrl_refs() {
                             if ! is_charging; then
                                 echo $c_ON >$ref; sleep 1;
                                 if is_charging; then
-                                    set_prop switch "$ref $c_ON $c_OFF";
-                                    succeeded=true; break 3;
+                                    set_prop switch_$i "$ref $c_ON $c_OFF";
+                                    ((i += 1));
+                                    if [ $i -eq 3 ]; then break 3; fi;
                                 fi;
                             fi;
                             echo $c_ON >$ref;
                         fi;
                     done;
+                    if [ $i -gt 1 ]; then break 2; fi;
                 fi;
             done <$uevents;
         fi;
     done <$uevents;
-    if [ ! $succeeded ]; then
+    if [ $i -eq 1 ]; then
         set_prop uevent dummy_Events;
         set_prop auto_shut false; set_prop auto_switch false;
         abort 'Failed to reconfigure them';
@@ -217,8 +234,9 @@ c_session() {
         charge_loop ':';
     fi;
 }
-if ([ ! -f $(uevent_f) ] || [ ! -f $(switch_p 1) ]) && ! echo $1 | grep -E '^(\-rc|\-\-reset\-cfg)$'; then
-    abort 'mcc internals are not properly configured';
+if ([ ! -f $(uevent_f) ] || [ ! -f $(switch_p 1 1) ]) && ! echo $1 | grep -E '^(\-rc|\-\-reset\-cfg)$'; then
+    echo -e 'mcc: warning: mcc internals are not properly configured\n';
+    clean_up;
 fi;
 case $1 in -f|--force) enforce=true; shift; ;; esac;
 case $1 in
@@ -255,10 +273,10 @@ case $1 in
         set_prop shut_threshold 20;
         printp 'All thresholds are reverted to defaults';
     ;;
-    -tp|--auto-shut  ) toggle    auto_shut   'Auto shut';   ;;
-    -ts|--auto-switch) toggle    auto_switch 'Auto switch'; ;;
-    -e|--enable      ) c_session   enable         $2;       ;;
-    -d|--disable     ) c_session   disable        $2;       ;;
+    -tp|--auto-shut  )  toggle    auto_shut   'Auto shut';  ;;
+    -ts|--auto-switch)  toggle   auto_switch 'Auto switch'; ;;
+     -e|--enable     ) c_session   enable         $2;       ;;
+     -d|--disable    ) c_session   disable        $2;       ;;
     -rd|--re-daemon)
         if ! $(auto_shut) && ! $(auto_switch); then
             abort 'Neither auto switch or auto shut is ON';
@@ -293,13 +311,10 @@ case $1 in
         rm -f /data/system/batterystats.bin;
         printp 'Battery stats are reset';
     ;;
-    -c|--clean)
-        re_count;
-        rm -f $files_dir/* $lock_file;
-        kill $(ps | awk '!/ awk / && / {mcc} /{ print $1 }' | tr '\n' ' ');
-    ;;
+     -c|--clean    )   clean_up;    ;;
     -rc|--reset-cfg) set_ctrl_refs; ;;
     -i|--info)
+        chmod u+r $(uevent_f);
         echo -e '- Battery status\n';
         echo "-- battery level: $(batt_level)";
         echo "-- battery health: $(get_prop POWER_SUPPLY_HEALTH $(uevent_f))";

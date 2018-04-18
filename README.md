@@ -1,5 +1,5 @@
 ###### My Charging Controller
-###### mcc README (201804171)
+###### mcc README (201804181)
 ###### JayminSuthar @ xda-developers
 
 ###### Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -34,7 +34,7 @@
 * A good way of using mcc is from a Terminal. Custom ROMs do
    have one under 'Development settings'
 * mcc does not require a root shell, but having is better so
-* From a Terminal, run 'mcc [OPTIONS] [ARGUMENTS]', see them
+* From a terminal, run 'mcc [OPTIONS] [ARGUMENTS]', see them
    below
 
 ## Options
@@ -73,7 +73,7 @@
 * The [-s/--switch] option will automatically figure out the
    other threshold based on the given
 * All mcc tasks are done in background, so you can close the
-   Terminal leaving mcc running
+   terminal leaving mcc running
 * For longer operations, you might disable logging by giving
    env variable no_ver_logs=true
 * If you need to pause the daemon, create an emply file with
@@ -84,8 +84,10 @@
 ## Remember
 
 * mcc requires Magisk >= 1400 and installs by Magisk Manager
-* mcc Installer/[-rc/--reset-cfg] requires charging ON while
+* mcc installer/[-rc/--reset-cfg] requires charging ON while
    taking a few minutes
+* If the installer/[-rc/--reset-cfg] causes a reboot, create
+   an empty file at /cache/mcc_noo
 * Resetting battery stats may not work for a few old devices
 
 ## Support/Discussions
@@ -97,11 +99,15 @@
 ## Encourage Me
 
 * Please hit 'Thanks' on the support thread if you like this
-   Project as it took me painful hours creating it
+   project as it took me painful hours creating it
 
 ## Release Notes
 
-#### 2.0
+#### 2.0.MR
 
-* This version is re-written from scratch, so please perform
-   a CLEAN INSTALLATION.
+* Hello people, This build is a fix for when a [-s/--switch]
+   call doesn't act like it should. Actually, the code while
+   having the down threshold and the code for when not, were
+   placed alternatively. So if you run... say 'mcc -s 85 70'
+   it would run as the '70' was not given and as mcc I wrote
+   to be intelligent, it would set 85 and ' 85 - 10 = 75'.
