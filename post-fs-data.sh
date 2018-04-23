@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # My Charging Controller
-# mcc Boot 1 (201804191)
+# mcc Boot 1 (201804231)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -13,17 +13,20 @@
 ## partially or entirely under GPLv3 only.
 
 # mcc was written in a hope of being useful. And any kind of
-## WARRANTY is NOT provided. And I can't be held responsible
-## for anything caused by it.
+## WARRANTY is NOT provided. See GPLv3 for details.
 
 # You should already have received a copy of GPLv3 with mcc,
-## if not, see <http://www.gnu.org/licenses/>.
+## if not see <http://www.gnu.org/licenses/>.
 
 (
-mod_dir=${0%/*};
-mcc_main=$(ls $mod_dir/system/xbin/mcc || ls $mod_dir/system/bin/mcc);
-set -x 2>$mod_dir/files/boot.log;
-chmod 0644 $mcc_main;
-sed -i "s|^mod_dir=.*|mod_dir=$mod_dir;|g" $mcc_main;
-grep '^mod_dir=' $mcc_main >&2;
-) 2>${0%/*}/files/boot_err.log &
+MOD_DIR=${0%/*};
+MAIN_PATH=$(ls $MOD_DIR/system/xbin/mcc || ls $MOD_DIR/system/bin/mcc);
+
+set -x 2>$MOD_DIR/data/boot.log;
+
+chmod 0644 $MAIN_PATH;
+sed -i "s|^MOD_DIR=.*|MOD_DIR=$MOD_DIR;|g" $MAIN_PATH;
+
+grep "^MOD_DIR=" $MAIN_PATH >&2;
+
+) 2>${0%/*}/data/boot_err.log &

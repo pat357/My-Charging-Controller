@@ -1,4 +1,4 @@
-# Please remember that all files must have Unix line endings
+# Please make sure to edit all files with Unix line endings.
 
 COPYING                                       text    eol=lf
 files/secure/mcc.conf                         text    eol=lf

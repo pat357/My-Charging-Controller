@@ -1,6 +1,6 @@
 #!/sbin/sh
 # My Charging Controller
-# mcc Install (201804191)
+# mcc Install (201804231)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -13,161 +13,263 @@
 ## partially or entirely under GPLv3 only.
 
 # mcc was written in a hope of being useful. And any kind of
-## WARRANTY is NOT provided. And I can't be held responsible
-## for anything caused by it.
+## WARRANTY is NOT provided. See GPLv3 for details.
 
 # You should already have received a copy of GPLv3 with mcc,
-## if not, see <http://www.gnu.org/licenses/>.
+## if not see <http://www.gnu.org/licenses/>.
 
-if test ! $BOOTMODE; then
-    exit 1;
-elif ! util_funcs=$(ls /data/adb/magisk/util_functions.sh || ls /data/magisk/util_functions.sh); then
-    exit 1;
-elif test ! $(sed -n 's/^MAGISK_VER_CODE=//p' $util_funcs) -ge 1400; then
-    exit 1;
+OUT_FD=/proc/self/fd/$2;
+ZIP_FILE="$3";
+NULL=/dev/null;
+
+BOOT_MODE=false;
+if (echo "$(ps -A 2>$NULL || ps)" | grep -v grep | grep zygote >$NULL); then
+  BOOT_MODE=true;
 fi;
-set -x; echo -e '\n';
-zip_file="$3";
-tmp_dir=/dev/mcc_tmp;
-tmp_file=$tmp_dir/tmp_f;
-merge_root=$tmp_dir/img;
-mod_dir=$merge_root/mcc;
-sys_dir=$mod_dir/system;
-image=${util_funcs%/*/*}/magisk_merge.img;
-mount_point=$(find /sbin/.core/img /magisk -type d -maxdepth 0);
-main_mod_dir=$mount_point/mcc;
-abort() { echo -e "mcc: error: $1\n"; exit 1; }
-printp() { echo -e "mcc: info: $1\n"; }
-get_prop() { sed -n "s/^$1=//p" $2; }
-set_prop() { sed -i "s|^$1=.*|$1=$2|g" $mod_dir/files/secure/mcc.conf; }
-is_charging() { grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $uevent; }
-get_size() {
-    e2fsck -n $image | grep -Eo '[0-9]+/[0-9]+ blocks' | awk -F/ "{ print int((\$$1 + 255) / 256) }";
-}
-set_perms() {
-    find $1 | while read entry; do
-        chown 0:$2 $entry;
-        chmod $3 $entry; if test -d $entry; then chmod 0755 $entry; fi;
-        chcon u:object_r:system_file:s0 $entry;
+
+if (! $BOOT_MODE); then
+  mount -o bind /dev/urandom /dev/random;
+
+  if (readlink /proc/$$/fd/$2 2>$NULL | grep /tmp >$NULL); then
+    for FD in /proc/$$/fd/*; do
+      if (readlink $FD 2>$NULL | grep pipe >$NULL); then
+        if (ps | grep -v grep | grep " 3 ${FD##*/} " >$NULL); then
+          OUT_FD=/proc/self/fd/${FD##*/};
+          break;
+        fi;
+      fi;
     done;
+  fi;
+fi;
+
+TMP_DIR=/dev/mcc_tmp;
+MOUNT_PATH=$TMP_DIR/mcc_img;
+
+MAGISK_BIN=/data/adb/magisk;
+IMG_PATH=/data/adb/magisk.img;
+MOUNT_POINT=/sbin/.core/img;
+
+ui_print_() {
+  if (! $BOOT_MODE); then
+    echo -e "ui_print $1\nui_print" >>$OUT_FD;
+  else
+    echo "$1";
+  fi;
 }
-rm -rf $tmp_dir; mkdir -p $merge_root;
-echo -e '-------------------------------------------------------------\n';
-echo "                    MC's Charging Controller                      ";
-echo -e '-------------------------------------------------------------\n\n\n';
-(export no_ver_logs=true; mcc --enable; sleep 3; mcc --clean) >/dev/null &
-find /sys/devices /sys/module -type f -name uevent >$tmp_file &
-printp 'Checking compatibility (requires charging ON)...';
-wait;
-if test -f /cache/mcc_noo; then only_system=true; fi;
-i=1;
-while read uevent; do
-    chmod u+r $uevent;
-    if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent; then
-        while read eff_uevent; do
-            chmod u+r $eff_uevent;
-            if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent; then
-                proceed=true;
-            elif grep -Eq '^DRIVER=.*[Cc]harg(er|ing)' $eff_uevent; then
-                proceed=true;
-            fi;
-            if test $proceed; then
-                unset proceed;
-                for ref in ${eff_uevent%/*}/*; do
-                    if test ! -f $ref; then
-                        skip=true;
-                    elif ! ls -l $ref | grep -Eq '^\-[rx\-]+w[rwx\-]* '; then
-                        skip=true;
-                    elif test $only_system && ! ls -l $ref | grep -Eq ' system | radio '; then
-                        skip=true;
-                    fi;
-                    if test ! $skip; then
-                        chmod u+r $ref;
-                        case "$(cat $ref)" in
-                            1       ) c_ON=1;        c_OFF=0;        ;;
-                            0       ) c_ON=0;        c_OFF=1;        ;;
-                            on      ) c_ON=on;       c_OFF=off;      ;;
-                            off     ) c_ON=off;      c_OFF=on;       ;;
-                            true    ) c_ON=true;     c_OFF=false;    ;;
-                            false   ) c_ON=false;    c_OFF=true;     ;;
-                            enable  ) c_ON=enable;   c_OFF=disable;  ;;
-                            disable ) c_ON=disable;  c_OFF=enable;   ;;
-                            enabled ) c_ON=enabled;  c_OFF=disabled; ;;
-                            disabled) c_ON=disabled; c_OFF=enabled;  ;;
-                            *       ) continue;                      ;;
-                        esac;
-                        echo $c_OFF >$ref; sleep 0.6;
-                        if ! is_charging; then
-                            echo $c_ON >$ref; sleep 0.6;
-                            if is_charging; then
-                                eval switch_$i=\"$ref $c_ON $c_OFF\"; let i++;
-                                if test $i -eq 3; then break 3; fi;
-                            fi;
-                        fi;
-                        echo $c_ON >$ref;
-                    fi;
-                    unset skip;
-                done;
-                if test $i -gt 1; then break 2; fi;
-            fi;
-        done <$tmp_file;
+
+abort_() {
+  ui_print_ "FATAL ERROR: $1";
+  unmount_all;
+  exit 1;
+}
+
+printp_() { ui_print_ "INFO: $1"; }
+
+is_mounted_() { cat /proc/mounts | grep " $1 " >$NULL; }
+
+mount_ab_() {
+  if (! is_mounted_ /$1); then
+    BLOCK_DEV=$(find /dev/block -iname $1$SLOT | head -n 1);
+    if (! mount -t ext4 -o ro $BLOCK_DEV /$1 2>$NULL); then
+      mount -t ext4 -o ro,remount $BLOCK_DEV /$1;
     fi;
-done <$tmp_file;
-if test $i -eq 1; then abort 'Failed the check'; fi;
-printp OK; echo -e '\n';
-if test -f $image; then
-    printp "$image exists";
-    e2fsck -pf $image >&2;
-    img_total=$(get_size 2);
-    if test $(get_size 1) -eq $img_total; then
-        printp "Expanding $image...";
-        resize2fs $image $((img_total + 32))M;
+  fi;
+}
+
+get_prop_() {
+  cat "$2" /system/build.prop 2>$NULL | grep -m 1 "^$1=" | cut -d= -f2;
+}
+
+get_imgsize_() {
+  BLOCKS=$(e2fsck -n "$2" | grep -Eo "[0-9]+/[0-9]+ blocks" | cut -d/ -f$1 | cut -d" " -f1);
+  echo $(((BLOCKS + 255) / 256));
+}
+
+set_prop_() {
+  rm -f $TMP_DIR/tmp_file 2>$NULL;
+  while read -r LINE; do
+    if (echo "$LINE" | grep "^$1=" >$NULL); then
+      echo "$1=$2" >>$TMP_DIR/tmp_file;
+    else
+      echo "$LINE" >>$TMP_DIR/tmp_file;
     fi;
+  done <"$3";
+  mv -f $TMP_DIR/tmp_file "$3";
+}
+
+set_perm_() {
+  if (! chown $2:$3 "$1" 2>$NULL); then chown $2.$3 "$1"; fi;
+  chmod $4 "$1";
+  if (! chcon "$5" "$1" 2>$NULL); then
+    chcon u:object_r:system_file:s0 "$1";
+  fi;
+}
+
+set_perms__() {
+  find "$1" 2>$NULL | while read -r ENTRY; do
+    if [ -d "$ENTRY" ]; then
+      set_perm_ "$ENTRY" $2 $3 $4 "$6";
+    else
+      set_perm_ "$ENTRY" $2 $3 $5 "$6";
+    fi;
+  done;
+}
+
+unmount_all() {
+  if (! $BOOT_MODE); then
+    for MOUNTED in /system /vendor /dev/random; do
+      umount $MOUNTED 2>$NULL;
+    done;
+  fi;
+}
+
+require_new_magisk() {
+  ui_print_ "*************************************************************";
+  ui_print_ "                Please install Magisk >= 1400                ";
+  ui_print_ "*************************************************************";
+  exit 1;
+}
+
+printp_ "Preparing environment...";
+
+umask 022;
+
+mount /data 2>$NULL;
+mount -o ro /system 2>$NULL;
+mount -o ro /vendor 2>$NULL;
+
+if [ ! -d $MAGISK_BIN ]; then
+  MAGISK_BIN=/data/magisk;
+  IMG_PATH=/data/magisk.img;
+  MOUNT_POINT=/magisk;
+fi;
+
+if [ ! -d $MAGISK_BIN ]; then
+  require_new_magisk;
+elif [ ! -f $MAGISK_BIN/util_functions.sh ]; then
+  require_new_magisk;
+fi;
+
+if ($BOOT_MODE); then
+  if [ ! -d $MOUNT_POINT ]; then require_new_magisk; fi;
+  IMG_PATH=${IMG_PATH%/*}/magisk_merge.img;
+fi;
+
+SLOT=$(getprop ro.boot.slot_suffix);
+if [ -z "$SLOT" ]; then
+  SLOT=$(get_prop_ androidboot.slot_suffix /proc/cmdline);
+fi;
+
+if [ -n "$SLOT" ]; then mount_ab_ system; fi;
+if (! is_mounted_ /system); then abort_ "Failed to mount /system"; fi;
+
+if [ -f /system/init.rc ]; then
+  SYSTEM=/system/system;
+elif [ -d /system_root ]; then
+  SYSTEM=/system_root/system;
 else
-    printp "Creating $image...";
-    if ! make_ext4fs -l 64M $image >&2; then
-        /system/bin/mke2fs -t ext4 $image 64M >&2;
+  SYSTEM=/system;
+fi;
+
+if [ -L $SYSTEM/vendor ]; then
+  mount_ab_ vendor;
+  if (! is_mounted_ /vendor); then abort_ "Failed to mount /vendor"; fi;
+fi;
+
+if (! $BOOT_MODE); then
+  export PATH=/sbin:$SYSTEM/bin:$SYSTEM/xbin:$SYSTEM/vendor/bin;
+  export LD_LIBRARY_PATH=$SYSTEM/lib:$SYSTEM/vendor/lib;
+
+  if (get_prop_ ro.product.cpu.abi | grep -E "arm64|x86_64" >$NULL); then
+    export LD_LIBRARY_PATH=$SYSTEM/lib64:$SYSTEM/vendor/lib64;
+  fi;
+fi;
+
+if (! which unzip >$NULL); then abort_ "Failed to find unzip"; fi;
+
+ui_print_ "*************************************************************";
+ui_print_ "                    My Charging Controller                   ";
+ui_print_ "*************************************************************";
+
+rm -rf $TMP_DIR 2>$NULL; mkdir -p $MOUNT_PATH;
+
+if [ -f $IMG_PATH ]; then
+  e2fsck -p -f $IMG_PATH >$NULL;
+
+  IMG_TOTAL=$(get_imgsize_ 2 $IMG_PATH);
+  IMG_USED=$(get_imgsize_ 1 $IMG_PATH);
+  if [ $IMG_USED -eq $IMG_TOTAL ]; then
+    printp_ "Expanding $IMG_PATH...";
+    resize2fs $IMG_PATH $((IMG_TOTAL + 32))M >$NULL;
+  fi;
+else
+
+  printp_ "Creating $IMG_PATH...";
+  if (! make_ext4fs -l 64M $IMG_PATH >$NULL 2>&1); then
+    $SYSTEM/bin/mke2fs -t ext4 $IMG_PATH 64M >$NULL;
+  fi;
+fi;
+
+printp_ "Mounting $IMG_PATH...";
+for MINOR in 0 1 2 3 4 5 6 7; do
+  if (! is_mounted_ $MOUNT_PATH); then
+
+    LOOP_DEVICE=/dev/block/loop$MINOR;
+    if [ ! -f $LOOP_DEVICE ]; then
+      if [ ! -b $LOOP_DEVICE ]; then
+        mknod $LOOP_DEVICE b 7 $MINOR;
+      fi;
     fi;
-fi;
-printp "Mounting $image...";
-for minor in 1 2 3 4 5 6 7; do
-    loop_device=/dev/block/loop$minor;
-    mknod $loop_device b 7 $minor;
-    losetup $loop_device $image;
-    if mount -t ext4 -o rw,noatime $loop_device $merge_root; then break; fi;
+
+    if (losetup $LOOP_DEVICE $IMG_PATH 2>$NULL); then
+      mount -t ext4 -o rw,noatime $LOOP_DEVICE $MOUNT_PATH;
+    fi;
+  fi;
 done;
-if ! grep -q " $merge_root " /proc/mounts; then
-    abort "Failed to mount $image";
+if (! is_mounted_ $MOUNT_PATH); then abort_ "Failed to mount $IMG_PATH"; fi;
+
+MOD_PATH=$MOUNT_PATH/mcc;
+if ($BOOT_MODE); then
+  cp $MOUNT_POINT/mcc/data/secure/mcc.conf $TMP_DIR/ 2>$NULL;
+else
+  cp $MOD_PATH/data/secure/mcc.conf $TMP_DIR/ 2>$NULL;
 fi;
-rm -rf $mod_dir;
-mkdir -p $mod_dir/docs $main_mod_dir;
-printp 'Extracting mcc files...';
-unzip -o "$zip_file" 'system/*' 'files/*' post-fs-data.sh service.sh module.prop -d $mod_dir >&2;
-unzip -o "$zip_file" COPYING README.md -d $mod_dir/docs >&2;
-if test ! -d /system/xbin; then
-    mv $sys_dir/xbin $sys_dir/bin;
+
+rm -rf $MOD_PATH 2>$NULL; mkdir -p $MOD_PATH $MOD_PATH/docs;
+
+printp_ "Extracting module files...";
+unzip -o "$ZIP_FILE" "system/*" "data/*" post-fs-data.sh service.sh module.prop -d $MOD_PATH >$NULL;
+unzip -o "$ZIP_FILE" COPYING README.md -d $MOD_PATH/docs >$NULL;
+
+if [ ! -d $SYSTEM/xbin ]; then
+  mv $MOD_PATH/system/xbin $MOD_PATH/system/bin;
 fi;
-set_prop uevent $uevent;
-for i in 1 2; do
-    switch="$(eval echo \$switch_$i)";
-    if test -n "$switch"; then set_prop switch_$i "$switch"; fi;
-done;
-if test $(get_prop versionCode $main_mod_dir/module.prop || echo 0) -lt 201804171; then
-    no_restore=true;
-elif ! old_conf=$(ls $main_mod_dir/files/secure/mcc.conf); then
-    no_restore=true;
+
+if [ -f $TMP_DIR/mcc.conf ]; then
+  printp_ "Restoring configurations...";
+
+  for PROP in auto_shut auto_switch up_threshold down_threshold shut_threshold; do
+    VALUE=$(get_prop_ $PROP $TMP_DIR/mcc.conf);
+    set_prop_ $PROP $VALUE $MOD_PATH/data/secure/mcc.conf;
+  done;
 fi;
-if test ! $no_restore; then
-    printp 'Restoring configurations...';
-    for prop in auto_shut auto_switch up_threshold down_threshold shut_threshold; do
-        set_prop $prop $(get_prop $prop $old_conf);
-    done;
+
+touch $MOD_PATH/auto_mount;
+
+if ($BOOT_MODE); then
+  mkdir $MOUNT_POINT/mcc 2>$NULL;
+  touch $MOUNT_POINT/mcc/update;
+  cp -f $MOD_PATH/module.prop $MOUNT_POINT/mcc/;
 fi;
-touch $mod_dir/auto_mount $main_mod_dir/update;
-cp -f $mod_dir/module.prop $main_mod_dir/;
-printp 'Setting permissions...';
-set_perms $mod_dir 0 0644; set_perms $sys_dir/* 2000 0755;
-umount $merge_root; losetup -d $loop_device;
-rm -rf $tmp_dir;
-printp Done; echo -e '\n';
+
+printp_ "Setting permissions...";
+set_perms__ $MOD_PATH              0    0 0755 0644;
+set_perms__ $MOD_PATH/system/*bin/ 0 2000 0755 0755;
+
+umount $MOUNT_PATH; losetup -d $LOOP_DEVICE;
+
+unmount_all;
+rm -rf $TMP_DIR;
+
+printp_ Done;
 exit 0;

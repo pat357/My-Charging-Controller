@@ -1,5 +1,5 @@
 ###### My Charging Controller
-###### mcc README (201804181)
+###### mcc README (201804231)
 ###### JayminSuthar @ xda-developers
 
 ###### Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -14,11 +14,10 @@
    partially or entirely under GPLv3 only.
 
 * mcc was written in a hope of being useful. And any kind of
-   WARRANTY is NOT provided. And I can't be held responsible
-   for anything caused by it.
+   WARRANTY is NOT provided. See GPLv3 for details.
 
 * You should already have received a copy of GPLv3 with mcc,
-   if not, see <http://www.gnu.org/licenses/>.
+   if not see <http://www.gnu.org/licenses/>.
 
 ## Links
 
@@ -27,87 +26,74 @@
 
 ## Introduction
 
-* #### Control how to charge your battery in an advanced way
+* #### Control how to charge your device in a better manner.
 
 ## Usage
 
-* A good way of using mcc is from a Terminal. Custom ROMs do
-   have one under 'Development settings'
-* mcc does not require a root shell, but having is better so
-* From a terminal, run 'mcc [OPTIONS] [ARGUMENTS]', see them
-   below
+* mcc can be ran from a terminal, i.e. Termux is a good one.
+* mcc doesn't require root shell, that mcc'd acquire itself.
+
+*                 mcc [OPTIONS] [ARGUMENTS]
+
+## Setup
+
+* Install mcc from either Magisk Manager or custom recovery.
+* Open terminal and run 'mcc; mcc -rc' to set mcc internals.
+* mcc's setup! Now launch mcc daemon using the [-rd] option.
 
 ## Options
 
-* [-f/--force] [-s/--switch] [-p/--shut] [-rt/--default]
-* [-ts/--auto-switch] [-tp/--auto-shut]
-* [-e/--enable] [-d/--disable] [-rd/--re-daemon]
-* [-r/--rm-stats] [-c/--clean] [-rc/--reset-cfg]
-* [-i/--info] [-h/--help]
+* [-f] [-s] [-p] [-rt] [-ts] [-tp] [-e] [-d]
+* [-rd] [-r] [-c] [-rc]
+* [-i] [-h]
 
-## Arguments
+## Examples
 
-* 'mcc -s 85 65'   -->   Set auto switch thresholds to 85 65
-* 'mcc -s 55'      -->   Set auto switch up threshold to 55
-* 'mcc -f -s 95'   -->   Force set auto swi* up threshold 95
-* 'mcc -p 15'      -->   Set auto shut threshold to 15
-* 'mcc -f -p 3'    -->   Force set auto shut threshold to 3
-* 'mcc -rt'        -->   Reset all thresholds to defaults
-* 'mcc -e 30s'     -->   Enable charging for 30 seconds
-* 'mcc -d 45m'     -->   Disable charging for 45 minutes
-* 'mcc -e 2h'      -->   Enable charging for 2 hours
-* 'mcc -d 30%'     -->   Disable charging until 30 percents
-* 'mcc -e 95%'     -->   Enable charging until 95 percents
-* 'mcc -e/-d'      -->   Enable/Disable charging for ever
-* 'mcc -ts'        -->   Toggle auto switch ON / OFF
-* 'mcc -tp'        -->   Toggle auto shut ON / OFF
-* 'mcc -rd'        -->   Launch the daemon unless running
-* 'mcc -r'         -->   Reset battery statistics
-* 'mcc -c'         -->   Clean mcc processes and files
-* 'mcc -rc'        -->   Reconfigure mcc internals
-* 'mcc -i'         -->   Show info about current status
-* 'mcc -h'         -->   Show this README page
+* 'mcc -s 85 65'   -->   auto_switch: set limits: 85 and 65.
+* 'mcc -s 55'      -->   auto_switch: set limits: 55 and IN.
+* 'mcc -f -s 95'   -->   auto_switch: force limits: 95, IN.
+* 'mcc -p 15'      -->   auto_shut: set threshold: 15.
+* 'mcc -f -p 3'    -->   auto_shut: force threshold: 3.
+* 'mcc -rt'        -->   auto_switch, auto_shut: revert all.
+* 'mcc -e 30s'     -->   session: enable for time: 30 secs.
+* 'mcc -d 45m'     -->   session: disable for time: 45 mins.
+* 'mcc -e 2h'      -->   session: enable for time: 2 hours.
+* 'mcc -d 30%'     -->   session: disable until level: 30.
+* 'mcc -e 95%'     -->   session: enable until level: 95.
+* 'mcc -e/-d'      -->   session: en/disable: unconditional.
+* 'mcc -ts'        -->   toggle: turn ON/OFF: auto_switch.
+* 'mcc -tp'        -->   toggle: turn ON/OFF: auto_shut.
+* 'mcc -rd'        -->   utilities: resume mcc daemon.
+* 'mcc -r'         -->   utilities: reset batterystats.
+* 'mcc -c'         -->   utilities: remove: processes, tmp.
+* 'mcc -i'         -->   general: show info: current stats.
+* 'mcc -h'         -->   general: show info: this README.
+* 'mcc -rc'        -->   core: reconfigure mcc internals.
 
 ## Tips/Misc...
 
-* The [-s/--switch] option will automatically figure out the
-   other threshold based on the given
-* All mcc tasks are done in background, so you can close the
-   terminal leaving mcc running
-* For longer operations, you might disable logging by giving
-   env variable no_ver_logs=true
-* If you need to pause the daemon, create an emply file with
-   path MOUNTPOINT/mcc/lock
-* If you see 'mcc internals are not properly configured', do
-   run [-rc/--reset-cfg]
+* You can leave the lower threshold for [-s], mcc is clever.
+* You can close the terminal, mcc executes it in background.
+* You can disable logs by setting in env no_ver_logs = true.
+* You can touch file MOUNTPOINT/mcc/lock to lock mcc daemon.
+* You can reconfigure mcc internals with given [-rc] option.
 
 ## Remember
 
-* mcc requires Magisk >= 1400 and installs by Magisk Manager
-* mcc installer/[-rc/--reset-cfg] requires charging ON while
-   taking a few minutes
-* If the installer/[-rc/--reset-cfg] causes a reboot, create
-   an empty file at /cache/mcc_noo
-* Resetting battery stats may not work for a few old devices
+* Device must be charging while reconfiguring mcc internals.
+* Touching /cache/mcc_noo is needed if [-rc] reboots device.
+* Resetting batterystats might not work for few old devices.
 
 ## Support/Discussions
 
-* Please use the support thread for discussions, bug reports
-   and other queries
-* Please post details and do mention me whenever is required
+* You can get support from the community at OFFICIAL thread.
 
 ## Encourage Me
 
-* Please hit 'Thanks' on the support thread if you like this
-   project as it took me painful hours creating it
+* You can encourage me by hitting the threads THANKS button.
 
 ## Release Notes
 
-#### 2.0.MR
+#### 2.1
 
-* Hello people, This build is a fix for when a [-s/--switch]
-   call doesn't act like it should. Actually, the code while
-   having the down threshold and the code for when not, were
-   placed alternatively. So if you run... say 'mcc -s 85 70'
-   it would run as the '70' was not given and as mcc I wrote
-   to be intelligent, it would set 85 and ' 85 - 10 = 75'.
+* Placeholder

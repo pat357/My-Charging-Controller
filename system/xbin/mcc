@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # My Charging Controller
-# mcc Main (201804191)
+# mcc Main (201804231)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -13,330 +13,425 @@
 ## partially or entirely under GPLv3 only.
 
 # mcc was written in a hope of being useful. And any kind of
-## WARRANTY is NOT provided. And I can't be held responsible
-## for anything caused by it.
+## WARRANTY is NOT provided. See GPLv3 for details.
 
 # You should already have received a copy of GPLv3 with mcc,
-## if not, see <http://www.gnu.org/licenses/>.
+## if not see <http://www.gnu.org/licenses/>.
 
-if ! id | grep '^uid=0' >/dev/null; then su -c mcc "$@"; exit; fi;
-mod_dir=/not/yet/set;
-ver_log=/dev/null; err_log=/dev/null;
-if test ! -d "$mod_dir"; then exit; fi;
-if test ! $no_ver_logs; then
-    ver_log=$mod_dir/files/main.log; err_log=$mod_dir/files/main_err.log;
+if (! id | grep "^uid=0" >/dev/null); then su -c mcc "$@"; exit; fi;
+
+MOD_DIR=;
+if [ ! -d "$MOD_DIR" ]; then exit; fi;
+
+NULL=/dev/null;
+VER_LOG=$NULL; ERR_LOG=$NULL;
+if [ -z "$no_ver_logs" ]; then
+  VER_LOG=$MOD_DIR/data/main.log; ERR_LOG=$MOD_DIR/data/main_err.log;
 fi;
 (
-set -x 2>$ver_log; echo -ne '\n';
-lock_file=$mod_dir/lock;
-files_dir=$mod_dir/files;
-yielder=$files_dir/yield;
-uevents=$files_dir/uevents.tmp;
-config=$files_dir/secure/mcc.conf;
-export PATH=$mod_dir/busybox:$PATH;
-if (! busybox | grep 'topjohnwu ' || ! which awk) >/dev/null; then exit; fi;
-abort() { echo "mcc: error: $1" >&2; echo -e "mcc: error: $1\n"; exit; }
-printp() { echo -e "mcc: info: $1\n"; }
-exxit_() { head -102 $mod_dir/docs/README.md; exit; }
-get_prop() { sed -n "s/^$1=//p" $2 $config; }
-set_prop() { sed -i "s|^$1=.*|$1=$2|g" $config; }
+set -x 2>$VER_LOG; echo -ne "\n";
+
+LOCK_FILE=$MOD_DIR/lock;
+DATA_DIR=$MOD_DIR/data;
+BLOCKER=$DATA_DIR/block;
+TMP_EVENTS=$DATA_DIR/uevents.tmp;
+CFG_FILE=$DATA_DIR/secure/mcc.conf;
+
+export PATH=$MOD_DIR/busybox:$PATH;
+if (! busybox | grep topjohnwu >$NULL || ! which awk >$NULL); then exit; fi;
+
+abort_() { echo "FATAL ERROR: $1" >&2; echo -e "FATAL ERROR: $1\n"; exit; }
+
+printp_() { echo -e "INFO: $1\n"; }
+
+exxit() { head -93 $MOD_DIR/docs/README.md; exit; }
+
+get_prop_() { sed -n "s/^$1=//p" "$2" $CFG_FILE 2>$NULL; }
+
+set_prop_() { sed -i "s|^$1=.*|$1=$2|g" $CFG_FILE; }
+
 is_runningd() {
-    test "$(ps | awk '!/ awk / && / {mcc} / && / \-\-launch\-daemon$/')";
+  test "$(ps | awk "!/ awk / && / {mcc} / && / \-\-launch\-daemon$/")";
 }
-is_charging() {
-    chmod u+r $(uevent_f);
-    case $1 in
-        cur) test $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0; ;;
-        *  ) grep -q '^POWER_SUPPLY_STATUS=[Cc]harging$' $(uevent_f);     ;;
-    esac;
+
+is_charging_() {
+  chmod u+r $(uevent_f);
+  case $1 in
+    cur) test $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0; ;;
+    *  ) grep -q "POWER_SUPPLY_STATUS=[Cc]harging" $(uevent_f);       ;;
+  esac;
 }
-test_bound() {
-    if test $1 -gt 99 || test $1 -lt 1; then
-        abort 'A threshold must belong to 1 - 99';
+
+test_bound__() {
+  if ([ $1 -gt 99 ] || [ $1 -lt 1 ]); then
+    abort_ "A threshold must belong to 1 - 99";
+  fi;
+}
+
+test_level__() {
+  if (! echo $1 | grep -Eq "^[0-9]+$"); then
+    abort_ "A threshold must be a number";
+  fi;
+  test_bound__ $1;
+}
+
+test_diff__() {
+  if ([ ! $1 -ge $(($2 + 5)) ] && [ -z "$ENFORCE" ]); then
+    abort_ "Thresholds must keep 5 levels difference";
+  fi;
+}
+
+test_boundaries__() {
+  if [ -n "$2" ]; then
+    if ([ $1 -gt 85 ] || [ $1 -lt 15 ] || [ $2 -gt 85 ] || [ $2 -lt 15 ]); then
+      THRESH_ERR=true;
     fi;
-}
-test_level() {
-    if ! echo $1 | grep -Eq '^[0-9]+$'; then
-        abort 'A threshold must be a number';
+
+  elif ([ $1 -gt 85 ] || [ $2 -lt 20 ]); then
+    THRESH_ERR=true;
+  fi;
+
+  if ([ -n "$THRESH_ERR" ] && [ -z "$ENFORCE" ]); then
+    abort_ "Threshold(s) must belong to 15 - 85";
+  fi;
+
+  if [ -z "$2" ]; then
+    if [ $1 -ge 25 ]; then
+      D=$(($1 - 10));
+    elif [ $1 -ge 20 ]; then
+      D=15;
+    elif [ $1 -ge 6 ]; then
+      D=$(($1 - 5));
+    elif [ $1 -eq 1 ]; then
+      U=2; D=1;
+    else
+      D=1;
     fi;
-    test_bound $1;
+  fi;
+
+  if [ -z "$U" ]; then U=$1; fi; set_prop_ up_threshold $U;
+  if [ -z "$D" ]; then D=$2; fi; set_prop_ down_threshold $D;
+  printp_ "New values saved";
 }
-test_diff() {
-    if test ! $1 -ge $(($2 + 5)) && test ! $enforce; then
-        abort 'Thresholds must keep 5 levels difference';
-    fi;
-}
-test_boundaries() {
-    if test -n "$2"; then
-        if test $1 -gt 85 || test $1 -lt 15 || test $2 -gt 85 || test $2 -lt 15; then
-            thresh_err=true;
-        fi;
-    elif test $1 -gt 85 || test $2 -lt 20; then
-        thresh_err=true;
-    fi;
-    if test $thresh_err && test ! $enforce; then
-        abort 'Threshold(s) must belong to 15 - 85';
-    elif test -z "$2"; then
-        if test $1 -ge 25; then
-            d=$(($1 - 10));
-        elif test $1 -ge 20; then
-            d=15;
-        elif test $1 -ge 6; then
-            d=$(($1 - 5));
-        elif test $1 -eq 1; then
-            u=2; d=1;
-        else
-            d=1;
-        fi;
-    fi;
-    if test -z "$u"; then u=$1; fi; set_prop up_threshold $u;
-    if test -z "$d"; then d=$2; fi; set_prop down_threshold $d;
-    printp 'New values saved';
-}
+
 charge_init() {
-    if test -f $yielder; then
-        abort 'Another session is already running';
-    elif test ! -f $lock_file; then
-        touched=true;
-    fi;
-    touch $lock_file $yielder;
-    switch_ $turn_1;
+  if [ -f $BLOCKER ]; then
+    abort_ "Another session is already running";
+  fi;
+
+  if [ ! -f $LOCK_FILE ]; then TOUCHED=true; fi;
+  touch $LOCK_FILE $BLOCKER;
+  switch_ $INIT;
 }
-charge_loop() { while eval $1; do switch_ $turn_1; sleep 1; done; }
+
+charge_loop_() { while (eval $1); do switch_ $INIT; sleep 1; done; }
+
 switch_() {
-    case $1 in
-        ON ) test='! is_charging'; val_1=3; val_2=2; ;;
-        OFF)  test='is_charging';  val_1=2; val_2=3; ;;
-    esac;
-    if eval $test; then
-        unset switched;
-    elif test ! $switched && eval "$test cur"; then
-        true;
-    else
-        switched=true; return;
+  case $1 in
+    ON ) TEST="! is_charging_"; VAL_1=3; VAL_2=2; ;;
+    OFF)  TEST="is_charging_";  VAL_1=2; VAL_2=3; ;;
+  esac;
+
+  if (eval $TEST); then
+    SWITCHED=;
+  elif ([ -z "$SWITCHED" ] && eval "$TEST cur"); then
+    true;
+  else
+    SWITCHED=true; return;
+  fi;
+
+  for I in 1 2; do
+    SWITCH=$(switch_p_ $I 1);
+
+    if [ -f "$SWITCH" ]; then
+      switch_p_ $I $VAL_1 >$SWITCH;
+      sleep 0.6;
+      switch_p_ $I $VAL_2 >$SWITCH;
     fi;
-    for i in 1 2; do
-        switch=$(switch_p $i 1);
-        if test -f $switch; then
-            switch_p $i $val_1 >$switch;
-            sleep 0.6;
-            switch_p $i $val_2 >$switch;
-        fi;
-    done;
+  done;
 }
+
 clean_up() {
-    rm -f $files_dir/* $lock_file;
-    kill $(ps | awk '!/ awk / && / {mcc} /{ print $1 }' | tr '\n' ' ');
+  rm -f $DATA_DIR/* $LOCK_FILE 2>$NULL;
+  kill $(ps | awk "!/ awk / && / {mcc} /{ print \$1 }" | tr "\n" " ");
 }
-toggle() {
-    value=true; status=ON; if $($1); then value=false; status=OFF; fi;
-    set_prop $1 $value;
-    printp "$2 toggled $status";
+
+toggle__() {
+  VALUE=true; STATUS=ON; if ($($1)); then VALUE=false; STATUS=OFF; fi;
+  set_prop_ $1 $VALUE;
+  printp_ "$2 toggled $STATUS";
 }
-auto_shut() { get_prop auto_shut; }
-auto_switch() { get_prop auto_switch; }
-up_threshold() { get_prop up_threshold; }
-down_threshold() { get_prop down_threshold; }
-shut_threshold() { get_prop shut_threshold; }
+
+auto_shut() { get_prop_ auto_shut; }
+
+auto_switch() { get_prop_ auto_switch; }
+
+up_threshold() { get_prop_ up_threshold; }
+
+down_threshold() { get_prop_ down_threshold; }
+
+shut_threshold() { get_prop_ shut_threshold; }
+
 batt_level() {
-    chmod u+r $(uevent_f); get_prop POWER_SUPPLY_CAPACITY $(uevent_f);
+  chmod u+r $(uevent_f); get_prop_ POWER_SUPPLY_CAPACITY $(uevent_f);
 }
-switch_p() { get_prop switch_$1 | awk "{ print \$$2 }"; }
-uevent_f() { get_prop uevent; }
+
+switch_p_() { get_prop_ switch_$1 | awk "{ print \$$2 }"; }
+
+uevent_f() { get_prop_ uevent; }
+
 set_ctrl_refs() {
-    for i in 1 2; do set_prop switch_$i dummy_Switch; done;
-    printp 'Reconfiguring internals (requires charging ON)...';
-    find /sys/devices /sys/module -type f -name uevent >$uevents;
-    if test -f /cache/mcc_noo; then only_system=true; fi;
-    i=1;
-    while read uevent; do
-        chmod u+r $uevent;
-        if grep -q '^POWER_SUPPLY_NAME=.*[Bb]att' $uevent; then
-            set_prop uevent $uevent;
-            while read eff_uevent; do
-                chmod u+r $eff_uevent;
-                if grep -Eq '^POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)' $eff_uevent; then
-                    proceed=true;
-                elif grep -Eq '^DRIVER=.*[Cc]harg(er|ing)' $eff_uevent; then
-                    proceed=true;
-                fi;
-                if test $proceed; then
-                    unset proceed;
-                    for ref in ${eff_uevent%/*}/*; do
-                        if test ! -f $ref; then
-                            skip=true;
-                        elif ! ls -l $ref | grep -Eq '^\-[rx\-]+w[rwx\-]* '; then
-                            skip=true;
-                        elif test $only_system && ! ls -l $ref | grep -Eq ' system | radio '); then
-                            skip=true;
-                        fi;
-                        if test ! $skip; then
-                            case "$(cat $ref)" in
-                                1       ) c_ON=1;        c_OFF=0;        ;;
-                                0       ) c_ON=0;        c_OFF=1;        ;;
-                                on      ) c_ON=on;       c_OFF=off;      ;;
-                                off     ) c_ON=off;      c_OFF=on;       ;;
-                                true    ) c_ON=true;     c_OFF=false;    ;;
-                                false   ) c_ON=false;    c_OFF=true;     ;;
-                                enable  ) c_ON=enable;   c_OFF=disable;  ;;
-                                disable ) c_ON=disable;  c_OFF=enable;   ;;
-                                enabled ) c_ON=enabled;  c_OFF=disabled; ;;
-                                disabled) c_ON=disabled; c_OFF=enabled;  ;;
-                                *       ) continue;                      ;;
-                            esac;
-                            echo $c_OFF >$ref; sleep 0.6;
-                            if ! is_charging; then
-                                echo $c_ON >$ref; sleep 0.6;
-                                if is_charging; then
-                                    set_prop switch_$i "$ref $c_ON $c_OFF";
-                                    ((i += 1));
-                                    if test $i -eq 3; then break 3; fi;
-                                fi;
-                            fi;
-                            echo $c_ON >$ref;
-                        fi;
-                        unset skip;
-                    done;
-                    if test $i -gt 1; then break 2; fi;
-                fi;
-            done <$uevents;
+  for I in 1 2; do set_prop_ switch_$I dummy_Switch; done;
+
+  printp_ "Reconfiguring internals (requires charging ON)...";
+
+  find /sys/devices /sys/module -type f -name uevent >$TMP_EVENTS 2>$NULL;
+  if [ -f /cache/mcc_noo ]; then SKIP_ROOT=true; fi;
+  I=1;
+
+  while read -r EVENTS_FILE; do
+    chmod u+r $EVENTS_FILE 2>$NULL;
+
+    if (grep -q "POWER_SUPPLY_NAME=.*[Bb]att" $EVENTS_FILE 2>$NULL); then
+      set_prop_ uevent $EVENTS_FILE;
+
+      while read -r EFFECTIVE_EVENT; do
+        chmod u+r $EFFECTIVE_EVENT 2>$NULL;
+
+        if (grep -Eq "POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)" $EFFECTIVE_EVENT 2>$NULL); then
+          PROCEED=true;
+        elif (grep -Eq "DRIVER=.*[Cc]harg(er|ing)" $EFFECTIVE_EVENT 2>$NULL); then
+          PROCEED=true;
         fi;
-    done <$uevents;
-    if test $i -eq 1; then
-        set_prop uevent dummy_Events;
-        set_prop auto_shut false; set_prop auto_switch false;
-        abort 'Failed to reconfigure them';
+        if [ -n "$PROCEED" ]; then
+          PROCEED=;
+
+          for REF in ${EFFECTIVE_EVENT%/*}/*; do
+
+            if [ ! -f $REF ]; then
+              SKIP=true;
+            elif (! ls -l $REF 2>$NULL | grep -Eq "^\-[rx\-]+w[rwx\-]* "); then
+              SKIP=true;
+            elif ([ -n "$SKIP_ROOT" ] && ! ls -l $REF  2>$NULL | grep -Eq " system | radio "); then
+              SKIP=true;
+            fi;
+            if [ -z "$SKIP" ]; then
+
+              case "$(cat $REF 2>$NULL)" in
+                1       ) VAL_ON=1;        VAL_OFF=0;        ;;
+                0       ) VAL_ON=0;        VAL_OFF=1;        ;;
+                on      ) VAL_ON=on;       VAL_OFF=off;      ;;
+                off     ) VAL_ON=off;      VAL_OFF=on;       ;;
+                true    ) VAL_ON=true;     VAL_OFF=false;    ;;
+                false   ) VAL_ON=false;    VAL_OFF=true;     ;;
+                enable  ) VAL_ON=enable;   VAL_OFF=disable;  ;;
+                disable ) VAL_ON=disable;  VAL_OFF=enable;   ;;
+                enabled ) VAL_ON=enabled;  VAL_OFF=disabled; ;;
+                disabled) VAL_ON=disabled; VAL_OFF=enabled;  ;;
+                *       ) continue;                          ;;
+              esac;
+
+              echo $VAL_OFF >$ref 2>$NULL; sleep 0.6;
+
+              if (is_charging_); then
+                TMP_VAR=$VAL_OFF; VAL_OFF=$VAL_ON; VAL_ON=$TMP_VAR;
+                echo $VAL_OFF >$ref 2>$NULL; sleep 0.6;
+              fi;
+
+              if (! is_charging_); then
+                echo $VAL_ON >$ref 2>$NULL; sleep 0.6;
+                if (is_charging_); then
+
+                  set_prop_ switch_$I "$REF $VAL_ON $VAL_OFF"; let I++;
+                  if [ $I -eq 3 ]; then break 3; fi;
+                fi;
+              fi;
+              echo $VAL_ON >$REF 2>$NULL;
+            fi;
+            SKIP=;
+          done;
+          if [ $I -gt 1 ]; then break 2; fi;
+        fi;
+      done <$TMP_EVENTS;
     fi;
-    printp Done;
+  done <$TMP_EVENTS;
+
+  if [ $I -eq 1 ]; then
+    set_prop_ uevent dummy_Events;
+    set_prop_ auto_shut false; set_prop_ auto_switch false;
+    abort_ "Failed to reconfigure them";
+  fi;
+
+  printp_ Done;
 }
-c_session() {
-    case $1 in
-        enable ) turn_1=ON;  turn_2=OFF; text=enabled;  ;;
-        disable) turn_1=OFF; turn_2=ON;  text=disabled; ;;
-    esac;
-    if test -n "$2"; then
-        if echo $2 | grep -Eq '^[0-9]+%$'; then
-            level=$(echo $2 | tr -d %);
-            test_bound $level;
-            charge_init;
-            printp "Session charging $text until $2...";
-            charge_loop 'test ! $(batt_level) -eq $level';
-        elif echo $2 | grep -Eq '^[0-9]+[smh]$'; then
-            charge_init;
-            printp "Session charging $text for $2...";
-            sleep $2 &
-            charge_loop $'test "$(ps | awk \'/^ *$! /\')"';
-        else
-            abort 'Invalid argument format';
-        fi;
-        rm -f $yielder $(test $touched && echo $lock_file);
-        switch_ $turn_2;
-        printp 'Session ended';
+
+c_session__() {
+  case $1 in
+    enable ) INIT=ON;  END=OFF; SHOW=enabled;  ;;
+    disable) INIT=OFF; END=ON;  SHOW=disabled; ;;
+  esac;
+
+  if [ -n "$2" ]; then
+
+    if (echo $2 | grep -Eq "^[0-9]+%$"); then
+      LEVEL=$(echo $2 | tr -d %);
+      test_bound__ $LEVEL;
+      charge_init;
+      printp_ "Session charging $SHOW until $2...";
+      charge_loop_ "test ! \$(batt_level) -eq \$level";
+
+    elif (echo $2 | grep -Eq "^[0-9]+[smh]$"); then
+      charge_init;
+      printp_ "Session charging $SHOW for $2...";
+      sleep $2 &
+      charge_loop_ "test \"\$(ps | awk \"/^ *\$! /\")\"";
+
     else
-        charge_loop ':';
+      abort_ 'Invalid argument format';
     fi;
+
+    rm -f $BLOCKER $(test $TOUCHED && echo $LOCK_FILE) 2>$NULL;
+    switch_ $END;
+    printp_ "Session ended";
+
+  else
+    charge_loop_ "true";
+  fi;
 }
-if (test ! -f $(uevent_f) || test ! -f $(switch_p 1 1)) && ! echo $1 | grep -E '^(\-rc|\-\-reset\-cfg)$'; then
-    echo -e 'mcc: warning: mcc internals are not configured, cleaning...\n';
-    clean_up;
+
+if ( ([ ! -f $(uevent_f) ] || [ ! -f $(switch_p_ 1 1) ]) && ! echo $1 | grep -q "^\-rc$"); then
+  echo -e "WARNING: mcc internals are not configured, cleaning...\n";
+  clean_up;
+
+elif [ "$1" = -f ]; then
+  ENFORCE=true;
 fi;
-case $1 in -f|--force) enforce=true; shift; ;; esac;
+
 case $1 in
-    -p|--shut)
-        if test -z "$2"; then
-            abort 'A threshold must be given';
-        elif ! echo $2 | grep -Eq '^[0-9]+$'; then
-            abort 'A threshold must be a number';
-        elif (test $2 -gt 20 || test $2 -lt 5) && test ! $enforce; then
-            abort 'Threshold must belong to 5 - 20';
+  -p)
+    if [ -z "$2" ]; then
+      abort_ "A threshold must be given";
+    elif (! echo $2 | grep -Eq "^[0-9]+$"); then
+      abort_ "A threshold must be a number";
+    elif ( ([ $2 -gt 20 ] || [ $2 -lt 5 ]) && [ -z "$ENFORCE" ]); then
+      abort_ "Threshold must belong to 5 - 20";
+    fi;
+
+    test_bound__ $2;
+    set_prop_ shut_threshold $2;
+    printp_ "New value saved";
+  ;;
+
+  -s)
+    if [ -n "$3" ]; then
+      test_level__ $3; test_level__ $2;
+
+      if [ $3 -gt $2 ]; then
+        test_diff__ $3 $2; test_boundaries__ $3 $2;
+      elif [ $2 -gt $3 ]; then
+        test_diff__ $2 $3; test_boundaries__ $2 $3;
+      else
+        abort_ "Thresholds must be different";
+      fi;
+
+    elif [ -n "$2" ]; then
+      test_level__ $2; test_boundaries__ $2;
+
+    else
+      abort_ "Threshold(s) must be given";
+    fi;
+  ;;
+
+  -rt)
+    set_prop_ up_threshold 80; set_prop_ down_threshold 70;
+    set_prop_ shut_threshold 20;
+    printp_ "All thresholds are reverted to defaults";
+  ;;
+
+  -tp)  toggle__  auto_shut   "Auto shut";  ;;
+
+  -ts)  toggle__ auto_switch "Auto switch"; ;;
+
+   -e) c_session__  enable        $2;       ;;
+
+   -d) c_session__  disable       $2;       ;;
+
+  -rd)
+    if (! $(auto_shut) && ! $(auto_switch)); then
+      abort_ "Neither auto switch or auto shut is ON";
+
+    elif (is_runningd); then
+      abort_ "mcc daemon is already running";
+    fi;
+
+    no_ver_logs=true mcc --launch-daemon <$NULL >$NULL 2>&1;
+    if (! is_runningd); then abort_ "Failed to launch the daemon"; fi;
+    printp_ "mcc daemon is running now";
+  ;;
+
+  --launch-daemon)
+    while ($(auto_shut) || $(auto_switch)); do
+      if [ ! -f $LOCK_FILE ]; then
+
+        if ($(auto_shut)); then
+          if ([ $(batt_level) -le $(shut_threshold) ] && ! is_charging_); then
+            poweroff 2>$NULL || setprop sys.powerctl shutdown;
+          fi;
         fi;
-        test_bound $2;
-        set_prop shut_threshold $2;
-        printp 'New value saved';
-    ;;
-    -s|--switch)
-        if test -n "$3"; then
-            test_level $3; test_level $2;
-            if test $3 -gt $2; then
-                test_diff $3 $2; test_boundaries $3 $2;
-            elif test $2 -gt $3; then
-                test_diff $2 $3; test_boundaries $2 $3;
-            else
-                abort 'Thresholds must be different';
-            fi;
-        elif test -n "$2"; then
-            test_level $2; test_boundaries $2;
-        else
-            abort 'Threshold(s) must be given';
+
+        if ($(auto_switch)); then
+          if [ $(batt_level) -ge $(up_threshold) ]; then
+            switch_ OFF;
+
+          elif [ $(batt_level) -le $(down_threshold) ]; then
+            switch_ ON;
+          fi;
         fi;
-    ;;
-    -rt|--default)
-        set_prop up_threshold 80; set_prop down_threshold 70;
-        set_prop shut_threshold 20;
-        printp 'All thresholds are reverted to defaults';
-    ;;
-    -tp|--auto-shut  )  toggle    auto_shut   'Auto shut';  ;;
-    -ts|--auto-switch)  toggle   auto_switch 'Auto switch'; ;;
-     -e|--enable     ) c_session   enable         $2;       ;;
-     -d|--disable    ) c_session   disable        $2;       ;;
-    -rd|--re-daemon)
-        if ! $(auto_shut) && ! $(auto_switch); then
-            abort 'Neither auto switch or auto shut is ON';
-        elif is_runningd; then
-            abort 'mcc daemon is already running';
-        fi;
-        no_ver_logs=true mcc --launch-daemon </dev/null >/dev/null 2>&1;
-        if ! is_runningd; then abort 'Failed to launch the daemon'; fi;
-        printp 'mcc daemon is running now';
-    ;;
-    --launch-daemon)
-        while $(auto_shut) || $(auto_switch); do
-            if test ! -f $lock_file; then
-                if $(auto_shut); then
-                    if test $(batt_level) -le $(shut_threshold) && ! is_charging; then
-                        setprop sys.powerctl shutdown;
-                    fi;
-                fi;
-                if $(auto_switch); then
-                    if test $(batt_level) -ge $(up_threshold); then
-                        switch_ OFF;
-                    elif test $(batt_level) -le $(down_threshold); then
-                        switch_ ON;
-                    fi;
-                fi;
-            fi;
-            sleep 1;
-        done;
-    ;;
-    -r|--rm-stats)
-        dumpsys batterystats --reset >/dev/null 2>&1;
-        rm -f /data/system/batterystats.bin;
-        printp 'Battery stats are reset';
-    ;;
-     -c|--clean    )   clean_up;    ;;
-    -rc|--reset-cfg) set_ctrl_refs; ;;
-    -i|--info)
-        chmod u+r $(uevent_f);
-        echo -e '- Battery status\n';
-        echo "-- battery level: $(batt_level)";
-        echo "-- battery health: $(get_prop POWER_SUPPLY_HEALTH $(uevent_f))";
-        status='Not charging'; if is_charging; then status=Charging; fi;
-        echo -e "-- charging status: $status\n";
-        echo -e '- Current settings\n';
-        echo "-- up threshold: $(up_threshold)";
-        echo "-- down threshold: $(down_threshold)";
-        echo -e "-- shut threshold: $(shut_threshold)\n";
-        status=OFF; if $(auto_switch); then status=ON; fi;
-        echo "-- automatic switching: $status";
-        status=OFF; if $(auto_shut); then status=ON; fi;
-        echo -e "-- automatic power-off: $status\n";
-        status='Not running'; if is_runningd; then status=Running; fi;
-        echo -e "- Daemon status: $status\n";
-    ;;
-    -h|--help) exxit_; ;;
-    *)
-        echo -e 'mcc: error: Invalid argument(s)\n'; sleep 2;
-        exxit_;
-    ;;
+      fi;
+      sleep 1;
+    done;
+  ;;
+
+  -r)
+    dumpsys batterystats --reset >$NULL 2>&1;
+    rm -f /data/system/batterystats.bin 2>$NULL;
+    printp_ "Batterystats are reset";
+  ;;
+
+   -c)   clean_up;    ;;
+
+  -rc) set_ctrl_refs; ;;
+
+   -i)
+    chmod u+r $(uevent_f);
+
+    echo -e "- Battery status\n";
+
+    echo "-- battery level: $(batt_level)";
+    echo "-- battery health: $(get_prop POWER_SUPPLY_HEALTH $(uevent_f))";
+    STATUS="Not charging"; if (is_charging_); then STATUS=Charging; fi;
+    echo -e "-- charging status: $STATUS\n";
+
+    echo -e "- Current settings\n";
+
+    echo "-- up threshold: $(up_threshold)";
+    echo "-- down threshold: $(down_threshold)";
+    echo -e "-- shut threshold: $(shut_threshold)\n";
+
+    STATUS=OFF; if ($(auto_switch)); then STATUS=ON; fi;
+    echo "-- automatic switching: $STATUS";
+    STATUS=OFF; if ($(auto_shut)); then STATUS=ON; fi;
+    echo -e "-- automatic power-off: $STATUS\n";
+
+    STATUS="Not running"; if (is_runningd); then STATUS=Running; fi;
+    echo -e "- Daemon status: $STATUS\n";
+  ;;
+
+  -h) exxit; ;;
+
+  *)
+    echo -e "FATAL ERROR: Invalid argument(s)\n"; sleep 2;
+    exxit;
+  ;;
 esac;
-) 2>$err_log &
+) 2>$ERR_LOG &
