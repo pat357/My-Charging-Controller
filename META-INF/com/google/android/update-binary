@@ -68,10 +68,10 @@ printp_() { ui_print_ "INFO: $1"; }
 is_mounted_() { cat /proc/mounts | grep " $1 " >$NULL; }
 
 mount_ab_() {
-  if (! is_mounted_ /$1); then
+  if (! is_mounted_ "$2"); then
     BLOCK_DEV=$(find /dev/block -iname $1$SLOT | head -n 1);
-    if (! mount -t ext4 -o ro $BLOCK_DEV /$1 2>$NULL); then
-      mount -t ext4 -o ro,remount $BLOCK_DEV /$1;
+    if (! mount -t ext4 -o ro $BLOCK_DEV "$2" 2>$NULL); then
+      mount -t ext4 -o ro,remount $BLOCK_DEV "$2";
     fi;
   fi;
 }
@@ -160,7 +160,7 @@ if [ -z "$SLOT" ]; then
   SLOT=$(get_prop_ androidboot.slot_suffix /proc/cmdline);
 fi;
 
-if [ -n "$SLOT" ]; then mount_ab_ system; fi;
+if [ -n "$SLOT" ]; then mount_ab_ system /system; fi;
 if (! is_mounted_ /system); then abort_ "Failed to mount /system"; fi;
 
 if [ -f /system/init.rc ]; then
@@ -172,7 +172,7 @@ else
 fi;
 
 if [ -L $SYSTEM/vendor ]; then
-  mount_ab_ vendor;
+  mount_ab_ vendor /vendor;
   if (! is_mounted_ /vendor); then abort_ "Failed to mount /vendor"; fi;
 fi;
 

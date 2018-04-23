@@ -18,7 +18,7 @@
 # You should already have received a copy of GPLv3 with mcc,
 ## if not see <http://www.gnu.org/licenses/>.
 
-if (! id | grep "^uid=0" >/dev/null); then su -c mcc "$@"; exit; fi;
+if (! id | grep "uid=0" >/dev/null); then su -c mcc "$@"; exit; fi;
 
 MOD_DIR=;
 if [ ! -d "$MOD_DIR" ]; then exit; fi;
@@ -28,37 +28,46 @@ VER_LOG=$NULL; ERR_LOG=$NULL;
 if [ -z "$no_ver_logs" ]; then
   VER_LOG=$MOD_DIR/data/main.log; ERR_LOG=$MOD_DIR/data/main_err.log;
 fi;
+
 (
 set -x 2>$VER_LOG; echo -ne "\n";
 
 LOCK_FILE=$MOD_DIR/lock;
 DATA_DIR=$MOD_DIR/data;
 BLOCKER=$DATA_DIR/block;
+TMP_FILE=$DATA_DIR/tmp_file;
 TMP_EVENTS=$DATA_DIR/uevents.tmp;
 CFG_FILE=$DATA_DIR/secure/mcc.conf;
 
-export PATH=$MOD_DIR/busybox:$PATH;
-if (! busybox | grep topjohnwu >$NULL || ! which awk >$NULL); then exit; fi;
-
-abort_() { echo "FATAL ERROR: $1" >&2; echo -e "FATAL ERROR: $1\n"; exit; }
+abort_() { echo -e "FATAL ERROR: $1\n"; exit; }
 
 printp_() { echo -e "INFO: $1\n"; }
 
-exxit() { head -93 $MOD_DIR/docs/README.md; exit; }
+exxit() { head -n 93 $MOD_DIR/docs/README.md; exit; }
 
-get_prop_() { sed -n "s/^$1=//p" "$2" $CFG_FILE 2>$NULL; }
+get_prop_() { cat "$2" | grep -m 1 "^$1=" | cut -d= -f2; }
 
-set_prop_() { sed -i "s|^$1=.*|$1=$2|g" $CFG_FILE; }
+set_prop_() {
+  rm -f $TMP_FILE 2>$NULL;
+  while read -r LINE; do
+    if (echo "$LINE" | grep "^$1=" >$NULL); then
+      echo "$1=$2" >>$TMP_FILE;
+    else
+      echo "$LINE" >>$TMP_FILE;
+    fi;
+  done <"$3";
+  mv -f $TMP_FILE "$3";
+}
 
 is_runningd() {
-  test "$(ps | awk "!/ awk / && / {mcc} / && / \-\-launch\-daemon$/")";
+  test "$(echo "$(ps -A 2>$NULL || ps)" | grep -v grep | grep "{mcc}" | grep "\-\-launch\-daemon")";
 }
 
 is_charging_() {
   chmod u+r $(uevent_f);
   case $1 in
-    cur) test $(get_prop POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0; ;;
-    *  ) grep -q "POWER_SUPPLY_STATUS=[Cc]harging" $(uevent_f);       ;;
+    cur) test $(get_prop_ POWER_SUPPLY_CURRENT_NOW $(uevent_f)) -le 0;    ;;
+    *  ) cat $(uevent_f) | grep "POWER_SUPPLY_STATUS=[Cc]harging" >$NULL; ;;
   esac;
 }
 
@@ -69,7 +78,7 @@ test_bound__() {
 }
 
 test_level__() {
-  if (! echo $1 | grep -Eq "^[0-9]+$"); then
+  if (! echo $1 | grep -E "^[0-9]+$" >$NULL); then
     abort_ "A threshold must be a number";
   fi;
   test_bound__ $1;
@@ -109,8 +118,8 @@ test_boundaries__() {
     fi;
   fi;
 
-  if [ -z "$U" ]; then U=$1; fi; set_prop_ up_threshold $U;
-  if [ -z "$D" ]; then D=$2; fi; set_prop_ down_threshold $D;
+  if [ -z "$U" ]; then U=$1; fi; set_prop_ up_threshold $U $CFG_FILE;
+  if [ -z "$D" ]; then D=$2; fi; set_prop_ down_threshold $D $CFG_FILE;
   printp_ "New values saved";
 }
 
@@ -126,6 +135,13 @@ charge_init() {
 
 charge_loop_() { while (eval $1); do switch_ $INIT; sleep 1; done; }
 
+write_() {
+  for I in 1 2; do
+    SWITCH=$(switch_p_ $I 1);
+    if [ -f "$SWITCH" ]; then switch_p_ $I $1 >$SWITCH; fi;
+  done;
+}
+
 switch_() {
   case $1 in
     ON ) TEST="! is_charging_"; VAL_1=3; VAL_2=2; ;;
@@ -140,25 +156,23 @@ switch_() {
     SWITCHED=true; return;
   fi;
 
-  for I in 1 2; do
-    SWITCH=$(switch_p_ $I 1);
-
-    if [ -f "$SWITCH" ]; then
-      switch_p_ $I $VAL_1 >$SWITCH;
-      sleep 0.6;
-      switch_p_ $I $VAL_2 >$SWITCH;
+  for I in 1 2 3 4 5; do
+    write_ $VAL_2;
+    if (eval $TEST || eval "$TEST cur"); then
+      write_ $VAL_1; sleep 0.6; write_ $VAL_2;
     fi;
+    sleep 1;
   done;
 }
 
 clean_up() {
   rm -f $DATA_DIR/* $LOCK_FILE 2>$NULL;
-  kill $(ps | awk "!/ awk / && / {mcc} /{ print \$1 }" | tr "\n" " ");
+  kill $(echo "$(ps -A 2>$NULL || ps)" | grep -v grep | grep "{mcc}" | cut -d" " -f1 | tr "\n" " ");
 }
 
 toggle__() {
   VALUE=true; STATUS=ON; if ($($1)); then VALUE=false; STATUS=OFF; fi;
-  set_prop_ $1 $VALUE;
+  set_prop_ $1 $VALUE $CFG_FILE;
   printp_ "$2 toggled $STATUS";
 }
 
@@ -176,12 +190,12 @@ batt_level() {
   chmod u+r $(uevent_f); get_prop_ POWER_SUPPLY_CAPACITY $(uevent_f);
 }
 
-switch_p_() { get_prop_ switch_$1 | awk "{ print \$$2 }"; }
+switch_p_() { get_prop_ switch_$1 | cut -d" " -f$2; }
 
 uevent_f() { get_prop_ uevent; }
 
 set_ctrl_refs() {
-  for I in 1 2; do set_prop_ switch_$I dummy_Switch; done;
+  for I in 1 2; do set_prop_ switch_$I dummy_Switch $CFG_FILE; done;
 
   printp_ "Reconfiguring internals (requires charging ON)...";
 
@@ -192,15 +206,15 @@ set_ctrl_refs() {
   while read -r EVENTS_FILE; do
     chmod u+r $EVENTS_FILE 2>$NULL;
 
-    if (grep -q "POWER_SUPPLY_NAME=.*[Bb]att" $EVENTS_FILE 2>$NULL); then
-      set_prop_ uevent $EVENTS_FILE;
+    if (cat $EVENTS_FILE | grep "POWER_SUPPLY_NAME=.*[Bb]att" >$NULL 2>&1); then
+      set_prop_ uevent $EVENTS_FILE $CFG_FILE;
 
       while read -r EFFECTIVE_EVENT; do
         chmod u+r $EFFECTIVE_EVENT 2>$NULL;
 
-        if (grep -Eq "POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)" $EFFECTIVE_EVENT 2>$NULL); then
+        if (cat $EFFECTIVE_EVENT | grep -E "POWER_SUPPLY_NAME=.*([Bb]att|USB|usb)" >$NULL 2>&1); then
           PROCEED=true;
-        elif (grep -Eq "DRIVER=.*[Cc]harg(er|ing)" $EFFECTIVE_EVENT 2>$NULL); then
+        elif (cat $EFFECTIVE_EVENT | grep -E "DRIVER=.*[Cc]harg(er|ing)" >$NULL 2>&1); then
           PROCEED=true;
         fi;
         if [ -n "$PROCEED" ]; then
@@ -210,9 +224,9 @@ set_ctrl_refs() {
 
             if [ ! -f $REF ]; then
               SKIP=true;
-            elif (! ls -l $REF 2>$NULL | grep -Eq "^\-[rx\-]+w[rwx\-]* "); then
+            elif (! ls -l $REF 2>$NULL | grep -E "^\-[rx\-]+w[rwx\-]* " >$NULL); then
               SKIP=true;
-            elif ([ -n "$SKIP_ROOT" ] && ! ls -l $REF  2>$NULL | grep -Eq " system | radio "); then
+            elif ([ -n "$SKIP_ROOT" ] && ! ls -l $REF  2>$NULL | grep -E " system | radio " >$NULL); then
               SKIP=true;
             fi;
             if [ -z "$SKIP" ]; then
@@ -231,25 +245,28 @@ set_ctrl_refs() {
                 *       ) continue;                          ;;
               esac;
 
-              echo $VAL_OFF >$ref 2>$NULL; sleep 0.6;
+              echo $VAL_OFF >$REF 2>$NULL; sleep 0.6;
 
               if (is_charging_); then
                 TMP_VAR=$VAL_OFF; VAL_OFF=$VAL_ON; VAL_ON=$TMP_VAR;
-                echo $VAL_OFF >$ref 2>$NULL; sleep 0.6;
+                echo $VAL_OFF >$REF 2>$NULL; sleep 0.6;
               fi;
 
               if (! is_charging_); then
-                echo $VAL_ON >$ref 2>$NULL; sleep 0.6;
+                echo $VAL_ON >$REF 2>$NULL; sleep 0.6;
                 if (is_charging_); then
 
-                  set_prop_ switch_$I "$REF $VAL_ON $VAL_OFF"; let I++;
+                  set_prop_ switch_$I "$REF $VAL_ON $VAL_OFF" $CFG_FILE;
+                  let I++;
                   if [ $I -eq 3 ]; then break 3; fi;
+
                 fi;
               fi;
               echo $VAL_ON >$REF 2>$NULL;
             fi;
             SKIP=;
           done;
+
           if [ $I -gt 1 ]; then break 2; fi;
         fi;
       done <$TMP_EVENTS;
@@ -257,8 +274,9 @@ set_ctrl_refs() {
   done <$TMP_EVENTS;
 
   if [ $I -eq 1 ]; then
-    set_prop_ uevent dummy_Events;
-    set_prop_ auto_shut false; set_prop_ auto_switch false;
+    set_prop_ uevent dummy_Events $CFG_FILE;
+    set_prop_ auto_shut false $CFG_FILE;
+    set_prop_ auto_switch false $CFG_FILE;
     abort_ "Failed to reconfigure them";
   fi;
 
@@ -273,24 +291,26 @@ c_session__() {
 
   if [ -n "$2" ]; then
 
-    if (echo $2 | grep -Eq "^[0-9]+%$"); then
+    if (echo $2 | grep -E "^[0-9]+%$" >$NULL); then
       LEVEL=$(echo $2 | tr -d %);
       test_bound__ $LEVEL;
+
       charge_init;
       printp_ "Session charging $SHOW until $2...";
       charge_loop_ "test ! \$(batt_level) -eq \$level";
 
-    elif (echo $2 | grep -Eq "^[0-9]+[smh]$"); then
+    elif (echo $2 | grep -E "^[0-9]+[smh]$" >$NULL); then
       charge_init;
       printp_ "Session charging $SHOW for $2...";
+
       sleep $2 &
-      charge_loop_ "test \"\$(ps | awk \"/^ *\$! /\")\"";
+      charge_loop_ "test \"\$(echo \"\$(ps -A 2>$NULL || ps)\" | grep \"^ *\$! \")\"";
 
     else
-      abort_ 'Invalid argument format';
+      abort_ "Invalid argument format";
     fi;
 
-    rm -f $BLOCKER $(test $TOUCHED && echo $LOCK_FILE) 2>$NULL;
+    rm -f $BLOCKER $([ -n "$TOUCHED" ] && echo $LOCK_FILE) 2>$NULL;
     switch_ $END;
     printp_ "Session ended";
 
@@ -299,7 +319,7 @@ c_session__() {
   fi;
 }
 
-if ( ([ ! -f $(uevent_f) ] || [ ! -f $(switch_p_ 1 1) ]) && ! echo $1 | grep -q "^\-rc$"); then
+if ( ([ ! -f $(uevent_f) ] || [ ! -f $(switch_p_ 1 1) ]) && [ "$1" = -rc ]); then
   echo -e "WARNING: mcc internals are not configured, cleaning...\n";
   clean_up;
 
@@ -311,14 +331,15 @@ case $1 in
   -p)
     if [ -z "$2" ]; then
       abort_ "A threshold must be given";
-    elif (! echo $2 | grep -Eq "^[0-9]+$"); then
+
+    elif (! echo $2 | grep -E "^[0-9]+$" >$NULL); then
       abort_ "A threshold must be a number";
     elif ( ([ $2 -gt 20 ] || [ $2 -lt 5 ]) && [ -z "$ENFORCE" ]); then
       abort_ "Threshold must belong to 5 - 20";
     fi;
 
     test_bound__ $2;
-    set_prop_ shut_threshold $2;
+    set_prop_ shut_threshold $2 $CFG_FILE;
     printp_ "New value saved";
   ;;
 
@@ -330,6 +351,7 @@ case $1 in
         test_diff__ $3 $2; test_boundaries__ $3 $2;
       elif [ $2 -gt $3 ]; then
         test_diff__ $2 $3; test_boundaries__ $2 $3;
+
       else
         abort_ "Thresholds must be different";
       fi;
@@ -343,8 +365,9 @@ case $1 in
   ;;
 
   -rt)
-    set_prop_ up_threshold 80; set_prop_ down_threshold 70;
-    set_prop_ shut_threshold 20;
+    set_prop_ up_threshold 80 $CFG_FILE;
+    set_prop_ down_threshold 70 $CFG_FILE;
+    set_prop_ shut_threshold 20 $CFG_FILE;
     printp_ "All thresholds are reverted to defaults";
   ;;
 
