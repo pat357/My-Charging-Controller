@@ -1,5 +1,5 @@
 ###### My Charging Controller
-###### mcc README (201804231)
+###### mcc README (201804241)
 ###### JayminSuthar @ xda-developers
 
 ###### Copyright (c) 2018 Jaymin Suthar. All rights reserved.

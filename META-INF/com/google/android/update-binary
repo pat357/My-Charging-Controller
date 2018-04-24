@@ -1,6 +1,6 @@
 #!/sbin/sh
 # My Charging Controller
-# mcc Install (201804231)
+# mcc Install (201804241)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -18,9 +18,9 @@
 # You should already have received a copy of GPLv3 with mcc,
 ## if not see <http://www.gnu.org/licenses/>.
 
+NULL=/dev/null;
 OUT_FD=/proc/self/fd/$2;
 ZIP_FILE="$3";
-NULL=/dev/null;
 
 BOOT_MODE=false;
 if (echo "$(ps -A 2>$NULL || ps)" | grep -v grep | grep zygote >$NULL); then

@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # My Charging Controller
-# mcc Main (201804231)
+# mcc Main (201804241)
 # JayminSuthar @ xda-developers
 
 # Copyright (c) 2018 Jaymin Suthar. All rights reserved.
@@ -32,12 +32,12 @@ fi;
 (
 set -x 2>$VER_LOG; echo -ne "\n";
 
-LOCK_FILE=$MOD_DIR/lock;
+LOCK_PATH=$MOD_DIR/lock;
 DATA_DIR=$MOD_DIR/data;
-BLOCKER=$DATA_DIR/block;
+YIELDER=$DATA_DIR/yield;
 TMP_FILE=$DATA_DIR/tmp_file;
 TMP_EVENTS=$DATA_DIR/uevents.tmp;
-CFG_FILE=$DATA_DIR/secure/mcc.conf;
+CFG_PATH=$DATA_DIR/secure/mcc.conf;
 
 abort_() { echo -e "FATAL ERROR: $1\n"; exit; }
 
@@ -60,7 +60,7 @@ set_prop_() {
 }
 
 is_runningd() {
-  test "$(echo "$(ps -A 2>$NULL || ps)" | grep -v grep | grep "{mcc}" | grep "\-\-launch\-daemon")";
+  test "$(echo "$(ps -A 2>$NULL || ps)" | grep -v grep | grep "{mcc}" | grep "\-\-launch\-daemon\$")";
 }
 
 is_charging_() {
@@ -78,7 +78,7 @@ test_bound__() {
 }
 
 test_level__() {
-  if (! echo $1 | grep -E "^[0-9]+$" >$NULL); then
+  if (! echo $1 | grep -E "^[0-9]+\$" >$NULL); then
     abort_ "A threshold must be a number";
   fi;
   test_bound__ $1;
@@ -118,18 +118,18 @@ test_boundaries__() {
     fi;
   fi;
 
-  if [ -z "$U" ]; then U=$1; fi; set_prop_ up_threshold $U $CFG_FILE;
-  if [ -z "$D" ]; then D=$2; fi; set_prop_ down_threshold $D $CFG_FILE;
+  if [ -z "$U" ]; then U=$1; fi; set_prop_ up_threshold $U $CFG_PATH;
+  if [ -z "$D" ]; then D=$2; fi; set_prop_ down_threshold $D $CFG_PATH;
   printp_ "New values saved";
 }
 
 charge_init() {
-  if [ -f $BLOCKER ]; then
+  if [ -f $YIELDER ]; then
     abort_ "Another session is already running";
   fi;
 
-  if [ ! -f $LOCK_FILE ]; then TOUCHED=true; fi;
-  touch $LOCK_FILE $BLOCKER;
+  if [ ! -f $LOCK_PATH ]; then TOUCHED=true; fi;
+  touch $LOCK_PATH $YIELDER;
   switch_ $INIT;
 }
 
@@ -166,36 +166,36 @@ switch_() {
 }
 
 clean_up() {
-  rm -f $DATA_DIR/* $LOCK_FILE 2>$NULL;
+  rm -f $DATA_DIR/* $LOCK_PATH 2>$NULL;
   kill $(echo "$(ps -A 2>$NULL || ps)" | grep -v grep | grep "{mcc}" | cut -d" " -f1 | tr "\n" " ");
 }
 
 toggle__() {
   VALUE=true; STATUS=ON; if ($($1)); then VALUE=false; STATUS=OFF; fi;
-  set_prop_ $1 $VALUE $CFG_FILE;
+  set_prop_ $1 $VALUE $CFG_PATH;
   printp_ "$2 toggled $STATUS";
 }
 
-auto_shut() { get_prop_ auto_shut; }
+auto_shut() { get_prop_ auto_shut $CFG_PATH; }
 
-auto_switch() { get_prop_ auto_switch; }
+auto_switch() { get_prop_ auto_switch $CFG_PATH; }
 
-up_threshold() { get_prop_ up_threshold; }
+up_threshold() { get_prop_ up_threshold $CFG_PATH; }
 
-down_threshold() { get_prop_ down_threshold; }
+down_threshold() { get_prop_ down_threshold $CFG_PATH; }
 
-shut_threshold() { get_prop_ shut_threshold; }
+shut_threshold() { get_prop_ shut_threshold $CFG_PATH; }
 
 batt_level() {
   chmod u+r $(uevent_f); get_prop_ POWER_SUPPLY_CAPACITY $(uevent_f);
 }
 
-switch_p_() { get_prop_ switch_$1 | cut -d" " -f$2; }
+switch_p_() { get_prop_ switch_$1 $CFG_PATH | cut -d" " -f$2; }
 
-uevent_f() { get_prop_ uevent; }
+uevent_f() { get_prop_ uevent $CFG_PATH; }
 
 set_ctrl_refs() {
-  for I in 1 2; do set_prop_ switch_$I dummy_Switch $CFG_FILE; done;
+  for I in 1 2; do set_prop_ switch_$I dummy_Switch $CFG_PATH; done;
 
   printp_ "Reconfiguring internals (requires charging ON)...";
 
@@ -207,7 +207,7 @@ set_ctrl_refs() {
     chmod u+r $EVENTS_FILE 2>$NULL;
 
     if (cat $EVENTS_FILE | grep "POWER_SUPPLY_NAME=.*[Bb]att" >$NULL 2>&1); then
-      set_prop_ uevent $EVENTS_FILE $CFG_FILE;
+      set_prop_ uevent $EVENTS_FILE $CFG_PATH;
 
       while read -r EFFECTIVE_EVENT; do
         chmod u+r $EFFECTIVE_EVENT 2>$NULL;
@@ -256,7 +256,7 @@ set_ctrl_refs() {
                 echo $VAL_ON >$REF 2>$NULL; sleep 0.6;
                 if (is_charging_); then
 
-                  set_prop_ switch_$I "$REF $VAL_ON $VAL_OFF" $CFG_FILE;
+                  set_prop_ switch_$I "$REF $VAL_ON $VAL_OFF" $CFG_PATH;
                   let I++;
                   if [ $I -eq 3 ]; then break 3; fi;
 
@@ -274,9 +274,9 @@ set_ctrl_refs() {
   done <$TMP_EVENTS;
 
   if [ $I -eq 1 ]; then
-    set_prop_ uevent dummy_Events $CFG_FILE;
-    set_prop_ auto_shut false $CFG_FILE;
-    set_prop_ auto_switch false $CFG_FILE;
+    set_prop_ uevent dummy_Events $CFG_PATH;
+    set_prop_ auto_shut false $CFG_PATH;
+    set_prop_ auto_switch false $CFG_PATH;
     abort_ "Failed to reconfigure them";
   fi;
 
@@ -291,7 +291,7 @@ c_session__() {
 
   if [ -n "$2" ]; then
 
-    if (echo $2 | grep -E "^[0-9]+%$" >$NULL); then
+    if (echo $2 | grep -E "^[0-9]+%\$" >$NULL); then
       LEVEL=$(echo $2 | tr -d %);
       test_bound__ $LEVEL;
 
@@ -299,7 +299,7 @@ c_session__() {
       printp_ "Session charging $SHOW until $2...";
       charge_loop_ "test ! \$(batt_level) -eq \$level";
 
-    elif (echo $2 | grep -E "^[0-9]+[smh]$" >$NULL); then
+    elif (echo $2 | grep -E "^[0-9]+[smh]\$" >$NULL); then
       charge_init;
       printp_ "Session charging $SHOW for $2...";
 
@@ -310,7 +310,7 @@ c_session__() {
       abort_ "Invalid argument format";
     fi;
 
-    rm -f $BLOCKER $([ -n "$TOUCHED" ] && echo $LOCK_FILE) 2>$NULL;
+    rm -f $YIELDER $([ -n "$TOUCHED" ] && echo $LOCK_PATH) 2>$NULL;
     switch_ $END;
     printp_ "Session ended";
 
@@ -339,7 +339,7 @@ case $1 in
     fi;
 
     test_bound__ $2;
-    set_prop_ shut_threshold $2 $CFG_FILE;
+    set_prop_ shut_threshold $2 $CFG_PATH;
     printp_ "New value saved";
   ;;
 
@@ -365,9 +365,9 @@ case $1 in
   ;;
 
   -rt)
-    set_prop_ up_threshold 80 $CFG_FILE;
-    set_prop_ down_threshold 70 $CFG_FILE;
-    set_prop_ shut_threshold 20 $CFG_FILE;
+    set_prop_ up_threshold 80 $CFG_PATH;
+    set_prop_ down_threshold 70 $CFG_PATH;
+    set_prop_ shut_threshold 20 $CFG_PATH;
     printp_ "All thresholds are reverted to defaults";
   ;;
 
@@ -394,7 +394,7 @@ case $1 in
 
   --launch-daemon)
     while ($(auto_shut) || $(auto_switch)); do
-      if [ ! -f $LOCK_FILE ]; then
+      if [ ! -f $LOCK_PATH ]; then
 
         if ($(auto_shut)); then
           if ([ $(batt_level) -le $(shut_threshold) ] && ! is_charging_); then
@@ -431,7 +431,7 @@ case $1 in
     echo -e "- Battery status\n";
 
     echo "-- battery level: $(batt_level)";
-    echo "-- battery health: $(get_prop POWER_SUPPLY_HEALTH $(uevent_f))";
+    echo "-- battery health: $(get_prop_ POWER_SUPPLY_HEALTH $(uevent_f))";
     STATUS="Not charging"; if (is_charging_); then STATUS=Charging; fi;
     echo -e "-- charging status: $STATUS\n";
 
